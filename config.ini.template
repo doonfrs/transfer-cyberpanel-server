@@ -1,0 +1,5 @@
+[remote]
+ip = 190.190.190.190
+port = 22
+user = rootuser
+password = "123"
