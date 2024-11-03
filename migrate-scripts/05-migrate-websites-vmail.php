@@ -1,6 +1,6 @@
 <?php
-
-require_once 'inc/functions.inc.php';  // Include common functions like readConfig, parseJson, executeSSHCommand, and sshCopyId
+error_reporting(E_ALL);
+require_once __DIR__ . '/inc/functions.inc.php';  // Include common functions like readConfig, parseJson, executeRemoteSSHCommand, and sshCopyId
 
 // Load configurations
 $config = readConfig();

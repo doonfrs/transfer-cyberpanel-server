@@ -23,8 +23,10 @@ echo "Migrating websites..."
 php migrate-scripts/01-migrate-websites.php && \
 echo "Migrating emails..." && \
 php migrate-scripts/02-migrate-emails.php && \
-echo "Migrating websites data..." && \
-php migrate-scripts/03-migrate-websites-data.php && \
+echo "Migrating databases..." && \
+php migrate-scripts/03-migrate-websites-databases.php && \
+echo "Migrating data..." && \
+php migrate-scripts/04-migrate-websites-data.php && \
 echo "Migrating vmail..." && \
-php migrate-scripts/04-migrate-websites-vmail.php && \
-echo "All migrations completed." 
+php migrate-scripts/05-migrate-websites-vmail.php
+

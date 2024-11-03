@@ -1,7 +1,33 @@
 <?php
 
 // Function to execute SSH commands and capture errors
-function executeSSHCommand($command)
+
+function executeRemoteSqlCommand($query, $remoteCredentials)
+{
+    $query = str_replace("\n", " ", $query);
+    $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
+
+    return executeRemoteSSHCommand($command);
+}
+
+function queryRemoteSql($query, $remoteCredentials)
+{
+    $query = str_replace("\n", " ", $query);
+    $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
+
+    $output = executeRemoteSSHCommand($command);
+    $lines = explode("\n", trim($output));
+    $result = [];
+    $header = array_shift($lines);
+    $header = explode("\t", $header);
+    $header = array_map('trim', $header);
+    foreach ($lines as $line) {
+        $result[] = array_combine($header, explode("\t", $line));
+    }
+    return $result;
+}
+
+function executeRemoteSSHCommand($command, $saveToFile = null)
 {
     $config = readConfig();
 
@@ -11,21 +37,26 @@ function executeSSHCommand($command)
     $remoteUser = $config['remote']['user'];
 
     $sshCommand = "ssh -p $remotePort -tt $remoteUser@$remoteIp \"$command\" 2>&1";
+    if ($saveToFile) {
+        $sshCommand .= " > $saveToFile";
+    }
+
+
     $output = shell_exec($sshCommand);
 
-    if ($output === null) {
-        echo "Failed to execute command: $sshCommand\n";
+    if ($saveToFile) {
+        shell_exec("sed -i '\${/Connection to [0-9]\{1,3\}\(\.[0-9]\{1,3\}\)\{3\} closed\./d}' $saveToFile");
+    } else {
+        $output = preg_replace('/^\[sudo\] password.*$/m', '', $output);
+        $output = preg_replace('/^Connection to .* closed\.\s*$/m', '', $output);
     }
+
     return $output;
 }
 
 // Function to parse and clean JSON, removing unwanted messages
 function parseJson($json)
 {
-    // Remove sudo password prompt and connection closed messages
-    $json = preg_replace('/^\[sudo\] password.*$/m', '', $json);
-    $json = preg_replace('/^Connection to .* closed\.\s*$/m', '', $json);
-
     // Decode the JSON
     $data = json_decode($json, true);
     if (is_string($data)) {
@@ -64,7 +95,7 @@ function sshCopyId()
 
     // Step 1: Check if SSH key-based authentication is set up
     $checkSshCommand = "ssh -o BatchMode=yes -p $remotePort $remoteUser@$remoteIp 'echo SSH connection established' 2>&1";
-    
+
     $output = shell_exec($checkSshCommand);
 
     // If SSH key authentication fails, set up the keys using ssh-copy-id
@@ -83,10 +114,31 @@ function sshCopyId()
 }
 
 
+function getRemoteWebsites()
+{
+    $config = readConfig();
+    $remotePassword = $config['remote']['password'];
+
+    // CyberPanel command to list websites
+    $cyberpanelCommand = "echo '$remotePassword' | sudo -S cyberpanel listWebsitesJson 2>/dev/null";
+
+    // Retrieve list of websites from CyberPanel on the remote server
+    $websitesJson = executeRemoteSSHCommand($cyberpanelCommand);
+    $websites = parseJson($websitesJson);
+    return $websites;
+}
+
 
 // Function to retrieve database credentials from a settings file
-function getDatabaseCredentialsFromSettings($settingsContent)
+function getDatabaseCredentialsFromSettings($settingsContent, $dbName)
 {
+    preg_match_all('/^DATABASES\s*=\s*\{(.+)^\}/ms', $settingsContent, $output_array);
+    $settingsContent = $output_array[1][0];
+
+    preg_match_all('/\'' . $dbName . '\':\s*\{(.+?)\},/ms', $settingsContent, $output_array);
+
+    $settingsContent = $output_array[1][0];
+
     preg_match("/'NAME': '(.+?)'/", $settingsContent, $name);
     preg_match("/'USER': '(.+?)'/", $settingsContent, $user);
     preg_match("/'PASSWORD': '(.+?)'/", $settingsContent, $password);
@@ -101,7 +153,7 @@ function getDatabaseCredentialsFromSettings($settingsContent)
 
 
 
-function getRemoteDatabaseCredentials()
+function getRemoteDatabaseCyberPanelCredentials()
 {
 
     $config = readConfig();
@@ -109,17 +161,32 @@ function getRemoteDatabaseCredentials()
 
 
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
-    $settings = executeSSHCommand("echo '$remotePassword' | sudo -S cat $settingsPath");
+    $settings = executeRemoteSSHCommand("echo '$remotePassword' | sudo -S cat $settingsPath");
 
     if (!$settings) {
         exit("Failed to retrieve remote database credentials.\n");
     }
 
-    return getDatabaseCredentialsFromSettings($settings);
+    return getDatabaseCredentialsFromSettings($settings, 'default');
 }
 
 
+function getRemoteDatabaseRootCredentials()
+{
 
+    $config = readConfig();
+    $remotePassword = $config['remote']['password'];
+
+
+    $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
+    $settings = executeRemoteSSHCommand("echo '$remotePassword' | sudo -S cat $settingsPath");
+
+    if (!$settings) {
+        exit("Failed to retrieve remote database credentials.\n");
+    }
+
+    return getDatabaseCredentialsFromSettings($settings, 'rootdb');
+}
 
 function getLocalDatabaseCredentials()
 {
@@ -131,10 +198,21 @@ function getLocalDatabaseCredentials()
         exit("Failed to retrieve remote database credentials.\n");
     }
 
-    return getDatabaseCredentialsFromSettings($settings);
+    return getDatabaseCredentialsFromSettings($settings, 'default');
 }
 
+function getLocalDatabaseRootCredentials()
+{
 
+    $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
+    $settings = file_get_contents($settingsPath);
+
+    if (!$settings) {
+        exit("Failed to retrieve remote database credentials.\n");
+    }
+
+    return getDatabaseCredentialsFromSettings($settings, 'rootdb');
+}
 
 
 // Step 4: Update Local Database with Remote Data
@@ -146,25 +224,20 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
     $remoteIp = $config['remote']['ip'];
     $remoteUser = $config['remote']['user'];
     $remotePort = $config['remote']['port'];
-    
-    // Fetch remote email data for this domain
-    $query = "SELECT password,firstName,lastName,email,type,api,securityLevel,state,initWebsitesLimit,twoFA,secretKey FROM loginSystem_administrator WHERE userName = '$user'";
-    $command = "ssh -p $remotePort $remoteUser@$remoteIp \"mysql -u{$remoteDbCredentials['user']} -p{$remoteDbCredentials['password']} -e \\\"$query\\\" {$remoteDbCredentials['name']}\"";
 
-    $remoteData = shell_exec($command);
+    // Fetch remote email data for this domain
+    $query = "SELECT password,firstName,lastName,email,type,api,securityLevel,state,initWebsitesLimit,twoFA,secretKey 
+    FROM loginSystem_administrator WHERE userName = '$user'";
+    $remoteData = queryRemoteSql($query, $remoteDbCredentials);
     if (!$remoteData) {
         echo "Failed to retrieve data for $user from remote database.\n";
         return;
     }
-
-    // Process and update each entry in the local database
-    $lines = explode("\n", trim($remoteData));
-    foreach (array_slice($lines, 1) as $line) {  // Skip header
-        list($password,$firstName,$lastName,$email,$type,$api,$securityLevel,$state,$initWebsitesLimit,$twoFA,$secretKey) = explode("\t", $line);
-
+    foreach ($remoteData as $row) {
+        extract($row);
         // Prepare the local UPDATE statement
         $updateQuery = "UPDATE loginSystem_administrator SET password='$password', firstName='$firstName',lastName='$lastName',email='$email',type='$type',api='$api',securityLevel='$securityLevel',state='$state',initWebsitesLimit='$initWebsitesLimit',twoFA='$twoFA',secretKey='$secretKey' WHERE userName = '$user'";
-        
+
         $localUpdateCommand = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} -e \"$updateQuery\" {$localDbCredentials['name']}";
         $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
 
@@ -173,6 +246,8 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
         echo "Updated $user locally: $output.\n";
     }
 }
+
+
 
 // Step 4: Update Local Database with Remote Data
 function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $domain)
@@ -183,25 +258,22 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
     $remoteIp = $config['remote']['ip'];
     $remoteUser = $config['remote']['user'];
     $remotePort = $config['remote']['port'];
-    
+
     // Fetch remote email data for this domain
     $query = "SELECT email, password, mail, DiskUsage, emailOwner_id FROM e_users WHERE emailOwner_id = '$domain'";
-    $command = "ssh -p $remotePort $remoteUser@$remoteIp \"mysql -u{$remoteDbCredentials['user']} -p{$remoteDbCredentials['password']} -e \\\"$query\\\" {$remoteDbCredentials['name']}\"";
 
-    $remoteData = shell_exec($command);
+    $remoteData = queryRemoteSql($query, $remoteDbCredentials);
     if (!$remoteData) {
         echo "Failed to retrieve data for $domain from remote database.\n";
         return;
     }
 
-    // Process and update each entry in the local database
-    $lines = explode("\n", trim($remoteData));
-    foreach (array_slice($lines, 1) as $line) {  // Skip header
-        list($email, $password, $mail, $DiskUsage, $emailOwner_id) = explode("\t", $line);
+    foreach ($remoteData as $row) {  // Skip header
+        extract($row);
 
         // Prepare the local UPDATE statement
         $updateQuery = "UPDATE e_users SET password='$password', mail='$mail', DiskUsage='$DiskUsage' WHERE email='$email' AND emailOwner_id='$emailOwner_id'";
-        
+
         $localUpdateCommand = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} -e \"$updateQuery\" {$localDbCredentials['name']}";
         $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
 
@@ -210,3 +282,11 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
         echo "Updated $email locally: $output.\n";
     }
 }
+
+
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) {
+        return;
+    }
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});

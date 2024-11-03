@@ -1,6 +1,6 @@
 <?php
-
-require_once 'inc/functions.inc.php';
+error_reporting(E_ALL);
+require_once __DIR__ . '/inc/functions.inc.php';
 
 // Load configurations from the ini file
 $config = readConfig();
@@ -15,25 +15,24 @@ $remotePassword = $config['remote']['password'];
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 
 // Step 1: Retrieve Remote Database Credentials
-$remoteDbCredentials = getRemoteDatabaseCredentials();
+$remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
 $localDbCredentials = getLocalDatabaseCredentials();
 
-// Step 3: Migrate Emails First
-$domainsJson = executeSSHCommand("echo '$remotePassword' | sudo -S cyberpanel listWebsitesJson 2>/dev/null");
-$domains = parseJson($domainsJson);
-if (!$domains) {
-    exit("Failed to retrieve or parse domain list.\n");
+$websites = getRemoteWebsites();
+if (!$websites) {
+    exit("Failed to retrieve or parse websites list.\n");
 }
 
+
 // Loop through each domain to retrieve and create emails (including inactive domains)
-foreach ($domains as $domainInfo) {
+foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     $state = $domainInfo['state'] ?? '';
 
     echo "Processing domain: $domainName (Status: $state)\n";
 
     // Retrieve emails for the current domain
-    $emailsJson = executeSSHCommand("echo '$remotePassword' | sudo -S cyberpanel listEmailsJson --domainName $domainName 2>/dev/null");
+    $emailsJson = executeRemoteSSHCommand("echo '$remotePassword' | sudo -S cyberpanel listEmailsJson --domainName $domainName 2>/dev/null");
     $emails = parseJson($emailsJson);
 
     if (!$emails) {

@@ -1,6 +1,6 @@
 <?php
-
-require_once 'inc/functions.inc.php';
+error_reporting(E_ALL);
+require_once __DIR__ . '/inc/functions.inc.php';
 
 // Load configurations from the ini file
 $config = readConfig();

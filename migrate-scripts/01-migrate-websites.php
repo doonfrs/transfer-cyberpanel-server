@@ -1,6 +1,6 @@
 <?php
-
-require_once 'inc/functions.inc.php';
+error_reporting(E_ALL);
+require_once __DIR__ . '/inc/functions.inc.php';
 
 // Load configurations from the ini file
 $config = readConfig();
@@ -14,14 +14,14 @@ $remotePassword = $config['remote']['password'];
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 
-$remoteDbCredentials = getRemoteDatabaseCredentials();
+$remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
 $localDbCredentials = getLocalDatabaseCredentials();
 
 
 // CyberPanel command to list websites
 $cyberpanelCommand = "echo '$remotePassword' | sudo -S cyberpanel listWebsitesJson 2>/dev/null";
 
-$websitesJson = executeSSHCommand($cyberpanelCommand);
+$websitesJson = executeRemoteSSHCommand($cyberpanelCommand);
 
 $websites = parseJson($websitesJson);
 if (!$websites) {
@@ -31,7 +31,7 @@ if (!$websites) {
 $cyberpanelCommand = "echo '$remotePassword' | sudo -S cyberpanel listPackagesJson 2>/dev/null";
 
 // Retrieve list of packages
-$packagesJson = executeSSHCommand($cyberpanelCommand);
+$packagesJson = executeRemoteSSHCommand($cyberpanelCommand);
 $packages = parseJson($packagesJson);
 if (!$packages) {
     exit("Failed to retrieve or parse packages list.\n");
@@ -74,8 +74,8 @@ foreach ($websites as $site) {
 
     $firstName = strlen($owner) > 10 ? substr($owner, 0, 10) : $owner;
     $lastName = strlen($owner) > 10 ? substr($owner, 0, 10) : $owner;
-    $firstName = preg_replace('/[^a-zA-Z]/', '', $firstName);
-    $lastName = preg_replace('/[^a-zA-Z]/', '', $lastName);
+    $firstName ='cyberpanel';
+    $lastName = 'cyberpanel';
 
     // Generate a random password
     $randomPassword = bin2hex(random_bytes(6));
