@@ -1,5 +1,16 @@
 #!/bin/bash
 
+if ! command -v sshpass &> /dev/null
+then
+    echo "sshpass is not installed. Installing it now..."
+    
+    # Update package list and install sshpass
+    sudo apt update
+    sudo apt install -y sshpass
+
+    echo "sshpass has been successfully installed."
+fi
+
 # Check if config.ini exists
 if [ ! -f "config.ini" ]; then
     echo "Error: config.ini not found."
