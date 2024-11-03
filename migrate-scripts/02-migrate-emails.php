@@ -56,10 +56,10 @@ foreach ($websites as $domainInfo) {
 
         $result = json_decode($createEmailOutput, true);
         if (!$result) {
-            exit("Failed to create email account for $email in domain $domainName $createEmailOutput\n");
-        }
-
-        if (!$result['success']) {
+            if (!str_contains($createEmailOutput, '{"success": 1, "errorMessage": "This account already exists!"}')) {
+                exit("Failed to create email account for $email in domain $domainName $createEmailOutput\n");
+            }
+        } else if (!$result['success']) {
             if (str_contains($result['errorMessage'], 'This account already exists!')) {
                 echo "Email $email already exists.\n";
             } elseif (str_contains($createEmailOutput, '{"success": 1, "errorMessage": "None"}')) {
