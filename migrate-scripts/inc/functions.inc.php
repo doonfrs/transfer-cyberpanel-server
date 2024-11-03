@@ -47,6 +47,9 @@ function executeRemoteSSHCommand($command, $saveToFile = null, $sudo = false)
         $sshCommand .= " > $saveToFile";
     }
 
+    if(isVerboseMode()) {
+        echo $sshCommand . "\n";
+    }
 
     $output = shell_exec($sshCommand);
 
@@ -295,6 +298,12 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
 
         echo "Updated $email locally: $output.\n";
     }
+}
+
+
+function isVerboseMode()
+{
+    return (in_array('-v', (array) $_SERVER['argv']));
 }
 
 
