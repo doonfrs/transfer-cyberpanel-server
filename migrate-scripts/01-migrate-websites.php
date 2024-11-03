@@ -64,7 +64,7 @@ foreach ($packages as $package) {
     }
 }
 
-// Loop through each website to create locally if active
+// Loop through each website to create locally 
 foreach ($websites as $site) {
     $domain = $site['domain'] ?? '';
     $adminEmail = $site['adminEmail'] ?? '';

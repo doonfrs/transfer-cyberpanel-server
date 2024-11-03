@@ -19,14 +19,14 @@ if [ "$answer" != "yes" ]; then
 fi
 
 echo "Running migrations..."    
-echo "Migrating websites..."
+echo -e "**********Migrating websites**********\n\n" && \
 php migrate-scripts/01-migrate-websites.php && \
-echo "Migrating emails..." && \
+echo -e "**********Migrating emails**********\n\n" && \
 php migrate-scripts/02-migrate-emails.php && \
-echo "Migrating databases..." && \
+echo -e "**********Migrating databases**********\n\n" && \
 php migrate-scripts/03-migrate-websites-databases.php && \
-echo "Migrating data..." && \
+echo -e "**********Migrating data**********\n\n" && \
 php migrate-scripts/04-migrate-websites-data.php && \
-echo "Migrating vmail..." && \
+echo -e "**********Migrating vmail**********\n\n" && \
 php migrate-scripts/05-migrate-websites-vmail.php
 

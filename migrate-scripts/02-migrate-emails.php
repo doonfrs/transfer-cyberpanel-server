@@ -24,7 +24,7 @@ if (!$websites) {
 }
 
 
-// Loop through each domain to retrieve and create emails (including inactive domains)
+// Loop through each domain to retrieve and create emails
 foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     $state = $domainInfo['state'] ?? '';
@@ -57,15 +57,13 @@ foreach ($websites as $domainInfo) {
         }
 
         if (!$result['success']) {
-            if (str_contains($result['errorMessage'], 'already exists.')) {
+            if (str_contains($result['errorMessage'], 'This account already exists!')) {
                 echo "Email $email already exists.\n";
+            } elseif (str_contains($createEmailOutput, '{"success": 1, "errorMessage": "None"}')) {
+                //
             } else {
                 exit("Failed to create email account for $email in domain $domainName $createEmailOutput\n");
             }
-        }
-
-        if ($createEmailOutput) {
-            echo "Command output: $createEmailOutput\n";
         }
 
         echo "Email: $email created\n";

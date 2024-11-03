@@ -29,4 +29,4 @@ echo "Changing ownership to vmail:vmail for /home/vmail...\n";
 $chownCommand = "chown -R vmail:vmail $localPath";
 $chownOutput = shell_exec($chownCommand . " 2>&1");
 
-echo "Migration, ownership, and indexing completed.\n";
+echo "Migration, ownership, and permissions completed.\n";

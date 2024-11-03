@@ -45,7 +45,8 @@ foreach ($websites as $site) {
 
 
 // Function to transfer website data using rsync with sudo on the remote side
-function transferWebsiteData($remotePath, $localPath) {
+function transferWebsiteData($remotePath, $localPath)
+{
     global $remoteUser, $remoteIp, $remotePort;
 
     // Include the remote port using -p in the SSH command
@@ -54,7 +55,8 @@ function transferWebsiteData($remotePath, $localPath) {
 }
 
 // Function to set ownership of the local public_html directory based on /home/$domain owner
-function setLocalOwnershipFromParent($domain) {
+function setLocalOwnershipFromParent($domain)
+{
     $parentDir = "/home/$domain";
     $targetDir = "$parentDir/public_html";
 
@@ -66,6 +68,17 @@ function setLocalOwnershipFromParent($domain) {
         $localOwner = $ownerInfo['name'];
         $localGroup = $groupInfo['name'];
         $chownCommand = "chown -R $localOwner:$localGroup $targetDir";
-        shell_exec($chownCommand . " 2>&1");
+        $output = shell_exec($chownCommand . " 2>&1");
+        if ($output) {
+            exit("Unable to set ownership for $domain. $output\n");
+        }
+
+        $chmodCommand = "chmod -R 755 $targetDir";
+        $output = shell_exec($chmodCommand . " 2>&1");
+        if ($output) {
+            exit("Unable to set pemission for $domain. $output\n");
+        }
+    } else {
+        exit("Unable to set local ownership for $domain.\n");
     }
 }
