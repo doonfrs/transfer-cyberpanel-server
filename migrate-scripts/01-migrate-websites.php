@@ -112,7 +112,7 @@ foreach ($websites as $site) {
 
     $result = json_decode($createWebsiteOutput, true);
     if (str_contains($createWebsiteOutput, 'You\'ve reached maximum websites limit as a reseller.')) {
-        if (str_contains(shellExec("cyberpanel listWebsites"), $domain)) {
+        if (str_contains(shellExec("cyberpanel listWebsitesJson"), $domain)) {
             echo "Website $domain already exists.\n";
             continue;
         } else {
@@ -128,6 +128,16 @@ foreach ($websites as $site) {
             continue;
         } else {
             exit("Failed to create website. $createWebsiteOutput\n");
+        }
+    }
+
+    if ($state == 'Suspended') {
+        echo "Website status is suspended.\n";
+        echo "Suspend website for $domain with owner $owner.\n";
+        $suspendWebsiteCommand = "cyberpanel suspendUser --userName \"$owner\" --state SUSPEND 2>&1";
+        $suspendWebsiteOutput = shellExec($suspendWebsiteCommand);
+        if (!str_contains($suspendWebsiteOutput, '{"status": 1}')) {
+            exit("Failed to suspend website. $suspendWebsiteOutput\n");
         }
     }
     // Output the domain and password for reference
