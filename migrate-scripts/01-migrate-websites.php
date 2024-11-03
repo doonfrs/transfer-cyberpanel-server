@@ -105,19 +105,27 @@ foreach ($websites as $site) {
 
     echo "Creating website for $domain with owner $owner.\n";
 
-    
+
     // Command to create website on local CyberPanel server
     $createWebsiteCommand = "cyberpanel createWebsite --domainName \"$domain\" --owner \"$owner\" --email \"$adminEmail\" --package \"$package\" --php 8.1 --ssl $ssl --dkim $dkim --password \"$randomPassword\" 2>&1";
     $createWebsiteOutput = shellExec($createWebsiteCommand);
 
     $result = json_decode($createWebsiteOutput, true);
-    if (!$result) {
+    if (str_contains($createWebsiteOutput, 'You\'ve reached maximum websites limit as a reseller.')) {
+        if (str_contains(shellExec("cyberpanel listWebsites"), $domain)) {
+            echo "Website $domain already exists.\n";
+            continue;
+        } else {
+            exit("Failed to create website. $createWebsiteOutput\n");
+        }
+    } elseif (!$result) {
         if (!str_contains($createWebsiteOutput, '{"success": 1, "errorMessage": "None"}')) {
             exit("Failed to create website. $createWebsiteOutput\n");
         }
     } else if (!$result['success']) {
         if (str_contains($result['errorMessage'], 'already exists.')) {
             echo "Website $domain already exists.\n";
+            continue;
         } else {
             exit("Failed to create website. $createWebsiteOutput\n");
         }
