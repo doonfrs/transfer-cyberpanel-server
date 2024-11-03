@@ -19,19 +19,19 @@ $localDbCredentials = getLocalDatabaseCredentials();
 
 
 // CyberPanel command to list websites
-$cyberpanelCommand = "echo '$remotePassword' | sudo -S cyberpanel listWebsitesJson 2>/dev/null";
+$cyberpanelCommand = "cyberpanel listWebsitesJson 2>/dev/null";
 
-$websitesJson = executeRemoteSSHCommand($cyberpanelCommand);
+$websitesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
 
 $websites = parseJson($websitesJson);
 if (!$websites) {
     exit("Failed to retrieve or parse websites list.\n");
 }
 
-$cyberpanelCommand = "echo '$remotePassword' | sudo -S cyberpanel listPackagesJson 2>/dev/null";
+$cyberpanelCommand = "cyberpanel listPackagesJson 2>/dev/null";
 
 // Retrieve list of packages
-$packagesJson = executeRemoteSSHCommand($cyberpanelCommand);
+$packagesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
 $packages = parseJson($packagesJson);
 if (!$packages) {
     exit("Failed to retrieve or parse packages list.\n");
@@ -74,7 +74,7 @@ foreach ($websites as $site) {
 
     $firstName = strlen($owner) > 10 ? substr($owner, 0, 10) : $owner;
     $lastName = strlen($owner) > 10 ? substr($owner, 0, 10) : $owner;
-    $firstName ='cyberpanel';
+    $firstName = 'cyberpanel';
     $lastName = 'cyberpanel';
 
     // Generate a random password

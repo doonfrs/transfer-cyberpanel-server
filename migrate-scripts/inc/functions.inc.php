@@ -27,7 +27,7 @@ function queryRemoteSql($query, $remoteCredentials)
     return $result;
 }
 
-function executeRemoteSSHCommand($command, $saveToFile = null)
+function executeRemoteSSHCommand($command, $saveToFile = null, $sudo = false)
 {
     $config = readConfig();
 
@@ -35,6 +35,12 @@ function executeRemoteSSHCommand($command, $saveToFile = null)
     $remoteIp = $config['remote']['ip'];
     $remotePort = $config['remote']['port'];
     $remoteUser = $config['remote']['user'];
+    $remotePassword = $config['remote']['password'];
+
+    if ($sudo) {
+        $remotePassword = escapeshellarg($remotePassword);
+        $command = "echo '$remotePassword' | sudo -S $command";
+    }
 
     $sshCommand = "ssh -p $remotePort -tt $remoteUser@$remoteIp \"$command\" 2>&1";
     if ($saveToFile) {
@@ -92,7 +98,7 @@ function sshCopyId()
 
 
 
-    if(!file_exists( getenv("HOME") . "/.ssh/id_rsa.pub")) {
+    if (!file_exists(getenv("HOME") . "/.ssh/id_rsa.pub")) {
         echo "SSH key not found in ~/.ssh/id_rsa.pub we will generate it now.\n";
         // Generate the SSH key
         $sshKeyCommand = "ssh-keygen -t rsa -b 4096 -P '' -f ~/.ssh/id_rsa -q";
@@ -123,13 +129,12 @@ function sshCopyId()
 function getRemoteWebsites()
 {
     $config = readConfig();
-    $remotePassword = $config['remote']['password'];
 
     // CyberPanel command to list websites
-    $cyberpanelCommand = "echo '$remotePassword' | sudo -S cyberpanel listWebsitesJson 2>/dev/null";
+    $cyberpanelCommand = "cyberpanel listWebsitesJson 2>/dev/null";
 
     // Retrieve list of websites from CyberPanel on the remote server
-    $websitesJson = executeRemoteSSHCommand($cyberpanelCommand);
+    $websitesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
     $websites = parseJson($websitesJson);
     return $websites;
 }
@@ -139,7 +144,7 @@ function getRemoteWebsites()
 function getDatabaseCredentialsFromSettings($settingsContent, $dbName)
 {
     preg_match_all('/^DATABASES\s*=\s*\{(.+)^\}/ms', $settingsContent, $output_array);
-    if(!isset($output_array[1][0])) {
+    if (!isset($output_array[1][0])) {
         exit("Failed to retrieve database credentials, the settings file is probably not valid.\n\n$settingsContent");
     }
     $settingsContent = $output_array[1][0];
@@ -170,7 +175,7 @@ function getRemoteDatabaseCyberPanelCredentials()
 
 
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
-    $settings = executeRemoteSSHCommand("echo '$remotePassword' | sudo -S cat $settingsPath");
+    $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
 
     if (!$settings) {
         exit("Failed to retrieve remote database credentials.\n");
@@ -188,7 +193,7 @@ function getRemoteDatabaseRootCredentials()
 
 
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
-    $settings = executeRemoteSSHCommand("echo '$remotePassword' | sudo -S cat $settingsPath");
+    $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
 
     if (!$settings) {
         exit("Failed to retrieve remote database credentials.\n");
@@ -201,7 +206,7 @@ function getLocalDatabaseCredentials()
 {
 
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
-    $settings = file_get_contents($settingsPath);
+    $settings = trim(file_get_contents($settingsPath));
 
     if (!$settings) {
         exit("Failed to retrieve remote database credentials.\n");
@@ -214,7 +219,7 @@ function getLocalDatabaseRootCredentials()
 {
 
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
-    $settings = file_get_contents($settingsPath);
+    $settings = trim(file_get_contents($settingsPath));
 
     if (!$settings) {
         exit("Failed to retrieve remote database credentials.\n");
