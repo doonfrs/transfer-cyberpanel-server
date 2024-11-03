@@ -38,7 +38,7 @@ function executeRemoteSSHCommand($command, $saveToFile = null, $sudo = false)
     $remotePassword = $config['remote']['password'];
 
     if ($sudo) {
-        $remotePassword = escapeshellcmd($remotePassword);
+        $remotePassword = str_replace('$', '\$', $remotePassword);
         $command = "echo '$remotePassword' | sudo -S $command";
     }
 
