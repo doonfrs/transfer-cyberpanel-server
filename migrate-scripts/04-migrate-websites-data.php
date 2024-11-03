@@ -51,7 +51,7 @@ function transferWebsiteData($remotePath, $localPath)
 
     // Include the remote port using -p in the SSH command
     $rsyncCommand = "rsync -a --info=progress2 -e 'ssh -p $remotePort' --rsync-path=\"sudo -n rsync\" $remoteUser@$remoteIp:$remotePath/ $localPath/";
-    exeLocal($rsyncCommand . " 2>&1");
+    shellExec($rsyncCommand . " 2>&1");
 }
 
 // Function to set ownership of the local public_html directory based on /home/$domain owner
@@ -68,13 +68,13 @@ function setLocalOwnershipFromParent($domain)
         $localOwner = $ownerInfo['name'];
         $localGroup = $groupInfo['name'];
         $chownCommand = "chown -R $localOwner:$localGroup $targetDir";
-        $output = exeLocal($chownCommand . " 2>&1");
+        $output = shellExec($chownCommand . " 2>&1");
         if ($output) {
             exit("Unable to set ownership for $domain. $output\n");
         }
 
         $chmodCommand = "chmod -R 755 $targetDir";
-        $output = exeLocal($chmodCommand . " 2>&1");
+        $output = shellExec($chmodCommand . " 2>&1");
         if ($output) {
             exit("Unable to set pemission for $domain. $output\n");
         }

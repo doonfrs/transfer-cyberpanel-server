@@ -47,20 +47,16 @@ function executeRemoteSSHCommand($command, $saveToFile = null, $sudo = false)
         $sshCommand .= " > $saveToFile";
     }
 
-    if(isVerboseMode()) {
-        echo $sshCommand . "\n";
-    }
-
-    $output = exeLocal($sshCommand);
+    $output = shellExec($sshCommand);
 
     if ($saveToFile) {
-        exeLocal("sed -i '\${/Connection to [0-9]\{1,3\}\(\.[0-9]\{1,3\}\)\{3\} closed\./d}' $saveToFile");
+        shellExec("sed -i '\${/Connection to [0-9]\{1,3\}\(\.[0-9]\{1,3\}\)\{3\} closed\./d}' $saveToFile");
     } else {
         $output = preg_replace('/^\[sudo\] password.*$/m', '', $output);
         $output = preg_replace('/^Connection to .* closed\.\s*$/m', '', $output);
     }
 
-    return $output;
+    return trim($output);
 }
 
 // Function to parse and clean JSON, removing unwanted messages
@@ -105,13 +101,13 @@ function sshCopyId()
         echo "SSH key not found in ~/.ssh/id_rsa.pub we will generate it now.\n";
         // Generate the SSH key
         $sshKeyCommand = "ssh-keygen -t rsa -b 4096 -P '' -f ~/.ssh/id_rsa -q";
-        exeLocal($sshKeyCommand . " 2>&1");
+        shellExec($sshKeyCommand . " 2>&1");
     }
 
     // Step 1: Check if SSH key-based authentication is set up
     $checkSshCommand = "ssh -o BatchMode=yes -p $remotePort $remoteUser@$remoteIp 'echo SSH connection established' 2>&1";
 
-    $output = exeLocal($checkSshCommand);
+    $output = shellExec($checkSshCommand);
 
     // If SSH key authentication fails, set up the keys using ssh-copy-id
     if (strpos($output, 'SSH connection established') === false) {
@@ -122,7 +118,7 @@ function sshCopyId()
 
         // Use sshpass with ssh-copy-id to set up key-based authentication
         $sshCopyIdCommand = "sshpass -p '$remotePassword' ssh-copy-id -i ~/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -p $remotePort $remoteUser@$remoteIp";
-        $output = exeLocal($sshCopyIdCommand . " 2>&1");
+        $output = shellExec($sshCopyIdCommand . " 2>&1");
 
         echo "ssh-copy-id output:\n$output\n";
     }
@@ -258,7 +254,7 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
         $localUpdateCommand = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} -e \"$updateQuery\" {$localDbCredentials['name']}";
         $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
 
-        $output = exeLocal($localUpdateCommand);
+        $output = shellExec($localUpdateCommand);
 
         echo "Updated $user locally: $output.\n";
     }
@@ -294,14 +290,14 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
         $localUpdateCommand = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} -e \"$updateQuery\" {$localDbCredentials['name']}";
         $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
 
-        $output = exeLocal($localUpdateCommand);
+        $output = shellExec($localUpdateCommand);
 
         echo "Updated $email locally: $output.\n";
     }
 }
 
 
-function exeLocal($command)
+function shellExec($command)
 {
     if(isVerboseMode()) {
         echo $command . "\n";

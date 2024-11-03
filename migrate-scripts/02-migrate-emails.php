@@ -33,6 +33,9 @@ foreach ($websites as $domainInfo) {
 
     // Retrieve emails for the current domain
     $emailsJson = executeRemoteSSHCommand("cyberpanel listEmailsJson --domainName $domainName 2>/dev/null", sudo: true);
+    if ($emailsJson == 0) {
+        continue;
+    }
     $emails = parseJson($emailsJson);
 
     if (!$emails) {
@@ -49,7 +52,7 @@ foreach ($websites as $domainInfo) {
         echo "Creating email account for $email in domain $domainName \n";
 
         $createEmailCommand = "cyberpanel createEmail --domainName \"$domainName\" --userName \"$username\" --password \"$emailPassword\" 2>&1";
-        $createEmailOutput = exeLocal($createEmailCommand);
+        $createEmailOutput = shellExec($createEmailCommand);
 
         $result = json_decode($createEmailOutput, true);
         if (!$result) {
