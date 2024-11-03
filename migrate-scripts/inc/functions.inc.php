@@ -306,8 +306,8 @@ function exeLocal($command)
     if(isVerboseMode()) {
         echo $command . "\n";
     }
-    
-    return trim(exeLocal($command));
+
+    return trim(shell_exec($command));
 }
 
 
