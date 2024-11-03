@@ -11,6 +11,9 @@ $remotePort = $config['remote']['port'];
 $remoteUser = $config['remote']['user'];
 $remotePassword = $config['remote']['password'];
 
+$ssl = $config['config']['ssl'] ?? 0;
+$dkim = $config['config']['dkim'] ?? 0;
+
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 
@@ -102,8 +105,9 @@ foreach ($websites as $site) {
 
     echo "Creating website for $domain with owner $owner.\n";
 
+    
     // Command to create website on local CyberPanel server
-    $createWebsiteCommand = "cyberpanel createWebsite --domainName \"$domain\" --owner \"$owner\" --email \"$adminEmail\" --package \"$package\" --php 8.1 --ssl 1 --dkim 1 --password \"$randomPassword\" 2>&1";
+    $createWebsiteCommand = "cyberpanel createWebsite --domainName \"$domain\" --owner \"$owner\" --email \"$adminEmail\" --package \"$package\" --php 8.1 --ssl $ssl --dkim $dkim --password \"$randomPassword\" 2>&1";
     $createWebsiteOutput = shell_exec($createWebsiteCommand);
 
     $result = json_decode($createWebsiteOutput, true);
