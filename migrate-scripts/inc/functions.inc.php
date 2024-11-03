@@ -93,6 +93,13 @@ function sshCopyId()
     // Define the path to the SSH key
     $sshKeyPath = "~/.ssh/id_rsa.pub";
 
+    if(!file_exists($sshKeyPath)) {
+        echo "SSH key not found at $sshKeyPath, we will generate it now.\n";
+        // Generate the SSH key
+        $sshKeyCommand = "ssh-keygen -t rsa -b 4096 -P '' -f ~/.ssh/id_rsa -q";
+        shell_exec($sshKeyCommand . " 2>&1");
+    }
+
     // Step 1: Check if SSH key-based authentication is set up
     $checkSshCommand = "ssh -o BatchMode=yes -p $remotePort $remoteUser@$remoteIp 'echo SSH connection established' 2>&1";
 

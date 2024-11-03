@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if ! command -v sshpass &> /dev/null
+if ! type -P sshpass &> /dev/null
 then
     echo "sshpass is not installed. Installing it now..."
     
