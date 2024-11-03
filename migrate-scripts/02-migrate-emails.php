@@ -29,7 +29,7 @@ foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     $state = $domainInfo['state'] ?? '';
 
-    echo "Processing domain: $domainName (Status: $state)\n";
+    echo "Processing domain: $domainName\n";
 
     // Retrieve emails for the current domain
     $emailsJson = executeRemoteSSHCommand("cyberpanel listEmailsJson --domainName $domainName 2>/dev/null", sudo: true);
