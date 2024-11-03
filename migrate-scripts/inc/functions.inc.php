@@ -139,6 +139,9 @@ function getRemoteWebsites()
 function getDatabaseCredentialsFromSettings($settingsContent, $dbName)
 {
     preg_match_all('/^DATABASES\s*=\s*\{(.+)^\}/ms', $settingsContent, $output_array);
+    if(!isset($output_array[1][0])) {
+        exit("Failed to retrieve database credentials, the settings file is probably not valid.\n\n$settingsContent");
+    }
     $settingsContent = $output_array[1][0];
 
     preg_match_all('/\'' . $dbName . '\':\s*\{(.+?)\},/ms', $settingsContent, $output_array);
