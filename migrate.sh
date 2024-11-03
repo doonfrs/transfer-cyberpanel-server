@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Check if config.ini exists
+if [ ! -f "config.ini" ]; then
+    echo "Error: config.ini not found."
+    echo "Please copy config.ini.template to config.ini and fill in the remote server information."
+    echo "Then run the script again."
+    exit 1
+fi
+
+
 php migrate-script/00-migrate-info.php
 
 echo "if You are sure about that, type 'yes' and press enter: ";
