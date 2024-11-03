@@ -144,6 +144,8 @@ foreach ($websites as $site) {
     echo "Website created: $domain\n";
 }
 
+restartLiteSpeed();
+
 
 
 // Run updates for each domain

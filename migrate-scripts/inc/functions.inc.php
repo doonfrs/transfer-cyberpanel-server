@@ -313,6 +313,19 @@ function isVerboseMode()
 }
 
 
+function restartLiteSpeed(bool $gracefull = true)
+{
+    $command = "/usr/local/lsws/bin/lswsctrl";
+    if ($gracefull) {
+        $command .= " restart";
+    } else {
+        $command .= " fullrestart";
+    }
+
+    return shellExec($command);
+}
+
+
 set_error_handler(function ($severity, $message, $file, $line) {
     if (!(error_reporting() & $severity)) {
         return;

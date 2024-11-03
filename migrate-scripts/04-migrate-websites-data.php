@@ -43,6 +43,7 @@ foreach ($websites as $site) {
 }
 
 
+restartLiteSpeed();
 
 // Function to transfer website data using rsync with sudo on the remote side
 function transferWebsiteData($remotePath, $localPath)
