@@ -90,11 +90,10 @@ function sshCopyId()
     $remoteUser = $config['remote']['user'];
     $remotePassword = $config['remote']['password'];
 
-    // Define the path to the SSH key
-    $sshKeyPath = "~/.ssh/id_rsa.pub";
 
-    if(!file_exists($sshKeyPath)) {
-        echo "SSH key not found at $sshKeyPath, we will generate it now.\n";
+
+    if(!file_exists( getenv("HOME") . "/.ssh/id_rsa.pub")) {
+        echo "SSH key not found in ~/.ssh/id_rsa.pub we will generate it now.\n";
         // Generate the SSH key
         $sshKeyCommand = "ssh-keygen -t rsa -b 4096 -P '' -f ~/.ssh/id_rsa -q";
         shell_exec($sshKeyCommand . " 2>&1");
@@ -113,7 +112,7 @@ function sshCopyId()
         echo "We are about to run ssh-copy-id to set up passwordless SSH access to $remoteIp. This will require your SSH password once.\n";
 
         // Use sshpass with ssh-copy-id to set up key-based authentication
-        $sshCopyIdCommand = "sshpass -p '$remotePassword' ssh-copy-id -i $sshKeyPath -o StrictHostKeyChecking=no -p $remotePort $remoteUser@$remoteIp";
+        $sshCopyIdCommand = "sshpass -p '$remotePassword' ssh-copy-id -i ~/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -p $remotePort $remoteUser@$remoteIp";
         $output = shell_exec($sshCopyIdCommand . " 2>&1");
 
         echo "ssh-copy-id output:\n$output\n";
