@@ -20,13 +20,13 @@ $localPath = "/home/vmail";
 // Rsync command to transfer /home/vmail directory
 $rsyncCommand = "rsync -a --info=progress2 -e 'ssh -p $remotePort' --rsync-path=\"sudo -n rsync\" $remoteUser@$remoteIp:$remotePath/ $localPath/";
 echo "Migrating /home/vmail directory...\n";
-$rsyncOutput = shell_exec($rsyncCommand . " 2>&1");
+$rsyncOutput = exeLocal($rsyncCommand . " 2>&1");
 echo $rsyncOutput ? "Rsync completed successfully.\n" : "Rsync failed.\n";
 
 
 echo "Changing ownership to vmail:vmail for /home/vmail...\n";
 // Set ownership to vmail:vmail recursively
 $chownCommand = "chown -R vmail:vmail $localPath";
-$chownOutput = shell_exec($chownCommand . " 2>&1");
+$chownOutput = exeLocal($chownCommand . " 2>&1");
 
 echo "Migration, ownership, and permissions completed.\n";

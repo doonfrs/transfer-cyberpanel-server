@@ -49,7 +49,7 @@ foreach ($websites as $domainInfo) {
         echo "Creating email account for $email in domain $domainName \n";
 
         $createEmailCommand = "cyberpanel createEmail --domainName \"$domainName\" --userName \"$username\" --password \"$emailPassword\" 2>&1";
-        $createEmailOutput = shell_exec($createEmailCommand);
+        $createEmailOutput = exeLocal($createEmailCommand);
 
         $result = json_decode($createEmailOutput, true);
         if (!$result) {

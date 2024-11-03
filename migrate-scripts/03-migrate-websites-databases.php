@@ -76,7 +76,7 @@ function transferWebsiteDatabases($domain)
         $randomPassword = bin2hex(random_bytes(6));
         $command = "cyberpanel createDatabase --databaseWebsite $domain --dbName $dbName --dbUsername $dbUser --dbPassword '$randomPassword'";
 
-        $output = shell_exec($command);
+        $output = exeLocal($command);
 
         $result = json_decode($output, true);
         if (!$result) {
@@ -101,7 +101,7 @@ function transferWebsiteDatabases($domain)
         $result = $result[0];
         $password = $result['Password'];
 
-        $output = shell_exec("mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} -e \"ALTER USER '$dbUser'@'localhost' IDENTIFIED BY PASSWORD '$password'\"");
+        $output = exeLocal("mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} -e \"ALTER USER '$dbUser'@'localhost' IDENTIFIED BY PASSWORD '$password'\"");
 
         if ($output) {
             exit("Failed to mysql passwords for $dbUser / $domain from remote database $output.\n");
@@ -117,7 +117,7 @@ function transferWebsiteDatabases($domain)
         echo "Running mysql dump locally...\n";
         $localUpdateCommand = "mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} $dbName < $dumpFileName";
         $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
-        $output = shell_exec($localUpdateCommand);
+        $output = exeLocal($localUpdateCommand);
         if ($output) {
             exit("Failed to mysql passwords for $dbUser / $domain from remote database $output.\n");
         }

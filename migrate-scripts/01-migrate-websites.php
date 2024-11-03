@@ -51,7 +51,7 @@ foreach ($packages as $package) {
     $emailAccounts = $package['emailAccounts'];
 
     $cyberpanelCommand = "cyberpanel createPackage --owner admin --packageName '$packageName' --diskSpace $diskSpace --bandwidth $bandwidth --emailAccounts $emailAccounts --dataBases $dataBases --ftpAccounts $ftpAccounts --allowedDomains $domains 2>&1";
-    $output = shell_exec($cyberpanelCommand);
+    $output = exeLocal($cyberpanelCommand);
 
     $result = json_decode($output, true);
     if (!$result) {
@@ -85,7 +85,7 @@ foreach ($websites as $site) {
 
     echo "Creating owner $owner for $domain.\n";
     $createUserCommand = "cyberpanel createUser --firstName '$firstName' --lastName '$lastName' --email '$adminEmail' --userName '$owner' --password '$randomPassword' --websitesLimit 100 --selectedACL user --securityLevel HIGH 2>&1";
-    $createUserOutput = shell_exec($createUserCommand);
+    $createUserOutput = exeLocal($createUserCommand);
 
     $result = json_decode($createUserOutput, true);
     if (!$result) {
@@ -108,7 +108,7 @@ foreach ($websites as $site) {
     
     // Command to create website on local CyberPanel server
     $createWebsiteCommand = "cyberpanel createWebsite --domainName \"$domain\" --owner \"$owner\" --email \"$adminEmail\" --package \"$package\" --php 8.1 --ssl $ssl --dkim $dkim --password \"$randomPassword\" 2>&1";
-    $createWebsiteOutput = shell_exec($createWebsiteCommand);
+    $createWebsiteOutput = exeLocal($createWebsiteCommand);
 
     $result = json_decode($createWebsiteOutput, true);
     if (!$result) {
