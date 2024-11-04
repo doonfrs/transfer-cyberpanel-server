@@ -74,7 +74,7 @@ foreach ($websites as $domainInfo) {
 }
 
 // Run updates for each domain
-foreach ($domains as $domainInfo) {
+foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     if ($domainName) {
         echo "Updating credentials for $domainName...\n";
