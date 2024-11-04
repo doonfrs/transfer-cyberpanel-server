@@ -70,7 +70,9 @@ This script offers a robust alternative to CyberPanel’s built-in transfer func
 
 4. **03-migrate-websites-data.php**: Uses `rsync` to transfer website data from the remote server’s public_html directories.
 
-5. **04-migrate-websites-vmail.php**: Migrates vmail directories for email storage and sets appropriate ownership.
+5. **04-migrate-websites-databases.php**: Migrate websites's mysql databases ( only databases that was created via cyberpanel ).
+
+6. **05-migrate-websites-vmail.php**: Migrates vmail directories for email storage and sets appropriate ownership.
 
 ## `migrate.sh` Execution Flow
 
