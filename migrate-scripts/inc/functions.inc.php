@@ -299,7 +299,7 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
 
 function shellExec($command)
 {
-    if(isVerboseMode()) {
+    if (isVerboseMode()) {
         echo $command . "\n";
     }
 
@@ -325,6 +325,16 @@ function restartLiteSpeed(bool $gracefull = true)
     return shellExec($command);
 }
 
+function checkPhpVersion()
+{
+    $requiredVersion = '8.1.0';
+    $currentVersion = PHP_VERSION;
+    if (version_compare($currentVersion, $requiredVersion, '<')) {
+        echo "Current PHP version is $currentVersion, which is lower than the required version 8.1.0.\n";
+        echo "Please upgrade PHP to version 8.1 or higher.\n";
+        exit(1); // Exit with a non-zero status to indicate failure
+    }
+}
 
 set_error_handler(function ($severity, $message, $file, $line) {
     if (!(error_reporting() & $severity)) {

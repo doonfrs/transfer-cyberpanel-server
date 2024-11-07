@@ -1,5 +1,7 @@
 #!/bin/bash
 
+php81="/usr/local/lsws/lsphp81/bin/php"
+
 verbose=""
 
 for arg in "$@"; do
@@ -8,6 +10,12 @@ for arg in "$@"; do
   fi
 done
 
+
+if [ ! -x "$php81" ]; then
+    echo "PHP 8.1 is not installed at $php81_path."
+    echo "Please install PHP 8.1 or ensure it is available at the specified path."
+    exit 1
+fi
 
 
 if ! type -P sshpass &> /dev/null
@@ -41,13 +49,13 @@ fi
 
 echo "Running migrations..."    
 echo -e "**********Migrating websites**********\n\n" && \
-php migrate-scripts/01-migrate-websites.php $verbose && \
+$php81 migrate-scripts/01-migrate-websites.php $verbose && \
 echo -e "**********Migrating emails**********\n\n" && \
-php migrate-scripts/02-migrate-emails.php $verbose && \
+$php81 migrate-scripts/02-migrate-emails.php $verbose && \
 echo -e "**********Migrating databases**********\n\n" && \
-php migrate-scripts/03-migrate-websites-databases.php $verbose && \
+$php81 migrate-scripts/03-migrate-websites-databases.php $verbose && \
 echo -e "**********Migrating data**********\n\n" && \
-php migrate-scripts/04-migrate-websites-data.php $verbose && \
+$php81 migrate-scripts/04-migrate-websites-data.php $verbose && \
 echo -e "**********Migrating vmail**********\n\n" && \
-php migrate-scripts/05-migrate-websites-vmail.php $verbose
+$php81 migrate-scripts/05-migrate-websites-vmail.php $verbose
 

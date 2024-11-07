@@ -4,6 +4,8 @@
 error_reporting(E_ALL);
 require_once __DIR__ . '/inc/functions.inc.php';
 
+checkPhpVersion();
+
 // Load configurations from the ini file
 $config = readConfig();
 
