@@ -88,25 +88,28 @@ function transferWebsiteDatabases($domain)
         }
 
 
-        echo "Retrieving mysql passwords for $dbUser / $domain...\n";
-        //update mysql user
-        $query = "SELECT Password,authentication_string FROM mysql.user WHERE User = '$dbUser'";
+        if ($dbUser != 'admin') {
+            echo "Retrieving mysql passwords for $dbUser / $domain...\n";
+            //update mysql user
+            $query = "SELECT Password,authentication_string FROM mysql.user WHERE User = '$dbUser'";
 
-        $result = queryRemoteSql($query, $remoteRootDbCredentials);
+            $result = queryRemoteSql($query, $remoteRootDbCredentials);
 
-        if (!$result) {
-            exit("Failed to mysql passwords for $dbUser / $domain from remote database.\n");
+            if (!$result) {
+                exit("Failed to mysql passwords for $dbUser / $domain from remote database.\n");
+            }
+
+            $result = $result[0];
+            $password = $result['Password'];
+
+            $output = shellExec("mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} -e \"ALTER USER '$dbUser'@'localhost' IDENTIFIED BY PASSWORD '$password'\"");
+
+            if ($output) {
+                exit("Failed to mysql passwords for $dbUser / $domain from remote database $output.\n");
+            }
         }
 
-        $result = $result[0];
-        $password = $result['Password'];
-
-        $output = shellExec("mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} -e \"ALTER USER '$dbUser'@'localhost' IDENTIFIED BY PASSWORD '$password'\"");
-
-        if ($output) {
-            exit("Failed to mysql passwords for $dbUser / $domain from remote database $output.\n");
-        }
-
+        
         $dumpFileName = "mysqldumps/$dbName-$dbUser.sql";
         echo "Retrieving mysql dump for $dbName $dbUser...\n";
         executeRemoteSSHCommand(

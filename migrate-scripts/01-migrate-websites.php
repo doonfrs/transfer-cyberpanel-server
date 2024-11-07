@@ -83,22 +83,27 @@ foreach ($websites as $site) {
     // Generate a random password
     $randomPassword = bin2hex(random_bytes(6));
 
-    echo "Creating owner $owner for $domain.\n";
-    $createUserCommand = "cyberpanel createUser --firstName '$firstName' --lastName '$lastName' --email '$adminEmail' --userName '$owner' --password '$randomPassword' --websitesLimit 100 --selectedACL user --securityLevel HIGH 2>&1";
-    $createUserOutput = shellExec($createUserCommand);
+    if ($owner == 'admin') {
+        print("Skipping creating user $owner\n");
+    } else {
+        echo "Creating owner $owner for $domain.\n";
+        $createUserCommand = "cyberpanel createUser --firstName '$firstName' --lastName '$lastName' --email '$adminEmail' --userName '$owner' --password '$randomPassword' --websitesLimit 100 --selectedACL user --securityLevel HIGH 2>&1";
+        $createUserOutput = shellExec($createUserCommand);
 
-    $result = json_decode($createUserOutput, true);
-    if (!$result) {
-        exit("Failed to create user. $createUserOutput\n");
-    }
-
-    if (!$result['status']) {
-        if (str_contains($result['error_message'], 'Duplicate entry') && str_contains($result['error_message'], "for key 'userName")) {
-            echo "User $owner already exists.\n";
-        } else {
+        $result = json_decode($createUserOutput, true);
+        if (!$result) {
             exit("Failed to create user. $createUserOutput\n");
         }
+
+        if (!$result['status']) {
+            if (str_contains($result['error_message'], 'Duplicate entry') && str_contains($result['error_message'], "for key 'userName")) {
+                echo "User $owner already exists.\n";
+            } else {
+                exit("Failed to create user. $createUserOutput\n");
+            }
+        }
     }
+
 
     // Generate a random password
     $randomPassword = bin2hex(random_bytes(6));
