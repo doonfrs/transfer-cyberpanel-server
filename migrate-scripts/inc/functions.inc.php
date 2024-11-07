@@ -303,7 +303,7 @@ function shellExec($command)
         echo $command . "\n";
     }
 
-    return trim(shell_exec($command));
+    return trim(shell_exec($command) ?? '');
 }
 
 
