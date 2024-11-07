@@ -71,9 +71,9 @@ foreach ($websites as $domainInfo) {
             } else {
                 output("Failed to create email account for $email in domain $domainName $createEmailOutput", exitCode: 1);
             }
+        } else {
+            output("Email: $email created", success: true);
         }
-
-        output("Email: $email created", success: true);
     }
 }
 

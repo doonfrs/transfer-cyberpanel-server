@@ -121,6 +121,8 @@ function transferWebsiteDatabases($domain)
 
             if ($output) {
                 output("Failed to mysql passwords for $dbUser / $domain from remote database $output.", exitCode: 1);
+            } else {
+                output("Successfully updated mysql passwords for $dbUser / $domain.", success: true);
             }
         }
 
