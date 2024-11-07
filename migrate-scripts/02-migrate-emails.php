@@ -60,7 +60,7 @@ foreach ($websites as $domainInfo) {
         if (!$result) {
             if (str_contains($createEmailOutput, '{"success": 1, "errorMessage": "This account already exists!"}')) {
                 output("Email $email already exists.");
-            } else {
+            } elseif (!(str_contains($createEmailOutput, '{"success": 1, "errorMessage": "None"}'))) {
                 output("Failed to create email account for $email in domain $domainName $createEmailOutput", exitCode: 1);
             }
         } else if (!$result['success']) {
