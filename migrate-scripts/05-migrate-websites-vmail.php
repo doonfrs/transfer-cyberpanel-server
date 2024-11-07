@@ -20,15 +20,20 @@ $remotePath = "/home/vmail";
 $localPath = "/home/vmail";
 
 // Rsync command to transfer /home/vmail directory
-$rsyncCommand = "rsync -a --info=progress2 -e 'ssh -p $remotePort' --rsync-path=\"sudo -n rsync\" $remoteUser@$remoteIp:$remotePath/ $localPath/";
-echo "Migrating /home/vmail directory...\n";
+$rsyncCommand = "rsync -a --info=progress2 -e 'ssh -p $remotePort' --rsync-path=\"sudo rsync\" $remoteUser@$remoteIp:$remotePath/ $localPath/";
+output("Migrating /home/vmail directory...");
 $rsyncOutput = shellExec($rsyncCommand . " 2>&1");
-echo $rsyncOutput ? "Rsync completed successfully.\n" : "Rsync failed.\n";
+
+if (str_contains($rsyncOutput, "error")) {
+    output("Rsync failed. $rsyncOutput, failed command:\n$rsyncCommand\n", exitCode: 1);
+}
+
+output("Rsync completed successfully.\n$rsyncOutput", success: true);
 
 
-echo "Changing ownership to vmail:vmail for /home/vmail...\n";
+output("Changing ownership to vmail:vmail for /home/vmail...");
 // Set ownership to vmail:vmail recursively
 $chownCommand = "chown -R vmail:vmail $localPath";
 $chownOutput = shellExec($chownCommand . " 2>&1");
 
-echo "Migration, ownership, and permissions completed.\n";
+output("Email Migration, ownership, and permissions completed.", success: true);

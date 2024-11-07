@@ -30,7 +30,7 @@ $websitesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
 
 $websites = parseJson($websitesJson);
 if (!$websites) {
-    exit("Failed to retrieve or parse websites list.\n");
+    output("Failed to retrieve or parse websites list.", exitCode: 1);
 }
 
 $cyberpanelCommand = "cyberpanel listPackagesJson 2>/dev/null";
@@ -39,7 +39,7 @@ $cyberpanelCommand = "cyberpanel listPackagesJson 2>/dev/null";
 $packagesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
 $packages = parseJson($packagesJson);
 if (!$packages) {
-    exit("Failed to retrieve or parse packages list.\n");
+    output("Failed to retrieve or parse packages list.", exitCode: 1);
 }
 
 foreach ($packages as $package) {
@@ -57,15 +57,17 @@ foreach ($packages as $package) {
 
     $result = json_decode($output, true);
     if (!$result) {
-        exit("Failed to create package $output\n");
+        output("Failed to create package $output", exitCode: 1);
     }
 
     if (!$result['success']) {
         if (str_contains($result['errorMessage'], 'Duplicate entry') && str_contains($result['errorMessage'], "for key 'packageName")) {
-            echo "Package $packageName already exists.\n";
+            output("Package $packageName already exists.");
         } else {
-            exit("Failed to create package. $output\n");
+            output("Failed to create package. $output", exitCode: 1);
         }
+    } else {
+        output("Package $packageName created.", success: true);
     }
 }
 
@@ -86,23 +88,25 @@ foreach ($websites as $site) {
     $randomPassword = bin2hex(random_bytes(6));
 
     if ($owner == 'admin') {
-        print("Skipping creating user $owner\n");
+        output("Skipping creating user $owner");
     } else {
-        echo "Creating owner $owner for $domain.\n";
+        output("Creating owner $owner for $domain.", nlBefore: true);
         $createUserCommand = "cyberpanel createUser --firstName '$firstName' --lastName '$lastName' --email '$adminEmail' --userName '$owner' --password '$randomPassword' --websitesLimit 100 --selectedACL user --securityLevel HIGH 2>&1";
         $createUserOutput = shellExec($createUserCommand);
 
         $result = json_decode($createUserOutput, true);
         if (!$result) {
-            exit("Failed to create user. $createUserOutput\n");
+            output("Failed to create user. $createUserOutput", exitCode: 1);
         }
 
         if (!$result['status']) {
             if (str_contains($result['error_message'], 'Duplicate entry') && str_contains($result['error_message'], "for key 'userName")) {
-                echo "User $owner already exists.\n";
+                output("User $owner already exists.");
             } else {
-                exit("Failed to create user. $createUserOutput\n");
+                output("Failed to create user. $createUserOutput", exitCode: 1);
             }
+        } else {
+            output("User $owner created.", success: true);
         }
     }
 
@@ -110,7 +114,7 @@ foreach ($websites as $site) {
     // Generate a random password
     $randomPassword = bin2hex(random_bytes(6));
 
-    echo "Creating website for $domain with owner $owner.\n";
+    output("Creating website for $domain with owner $owner.",  nlBefore: true);
 
 
     // Command to create website on local CyberPanel server
@@ -120,46 +124,48 @@ foreach ($websites as $site) {
     $result = json_decode($createWebsiteOutput, true);
     if (str_contains($createWebsiteOutput, 'You\'ve reached maximum websites limit as a reseller.')) {
         if (str_contains(shellExec("cyberpanel listWebsitesJson"), $domain)) {
-            echo "Website $domain already exists.\n";
+            output("Website $domain already exists.");
             continue;
         } else {
-            exit("Failed to create website. $createWebsiteOutput\n");
+            output("Failed to create website. $createWebsiteOutput", exitCode: 1);
         }
     } elseif (!$result) {
         if (!str_contains($createWebsiteOutput, '{"success": 1, "errorMessage": "None"}')) {
-            exit("Failed to create website. $createWebsiteOutput\n");
+            output("Failed to create website. $createWebsiteOutput", exitCode: 1);
         }
     } else if (!$result['success']) {
         if (str_contains($result['errorMessage'], 'already exists.')) {
-            echo "Website $domain already exists.\n";
+            output("Website $domain already exists.");
             continue;
         } else {
-            exit("Failed to create website. $createWebsiteOutput\n");
+            output("Failed to create website. $createWebsiteOutput", exitCode: 1);
         }
     }
 
     if ($state == 'Suspended') {
-        echo "Website status is suspended.\n";
-        echo "Suspend website for $domain with owner $owner.\n";
+        output("Website status is suspended.");
+        output("Suspend website for $domain with owner $owner.");
         $suspendWebsiteCommand = "cyberpanel suspendUser --userName \"$owner\" --state SUSPEND 2>&1";
         $suspendWebsiteOutput = shellExec($suspendWebsiteCommand);
         if (!str_contains($suspendWebsiteOutput, '{"status": 1}')) {
-            exit("Failed to suspend website. $suspendWebsiteOutput\n");
+            output("Failed to suspend website. $suspendWebsiteOutput", exitCode: 1);
         }
     }
     // Output the domain and password for reference
-    echo "Website created: $domain\n";
+    output("Website created: $domain", success: true);
 }
 
+output("Restarting LiteSpeed.", nlBefore: true);
 restartLiteSpeed();
 
-
-
+output("Updating websites credentials.", nlBefore: true);
 // Run updates for each domain
 foreach ($websites as $site) {
     $domain = $site['domain'] ?? '';
     $adminEmail = $site['adminEmail'] ?? '';
     $owner = $site['admin'] ?? '';
-    echo "Updating credentials for $owner...\n";
+    output("Updating credentials for $owner...", nlBefore: true);
     updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $owner);
 }
+
+output("Website migration completed.", success: true);

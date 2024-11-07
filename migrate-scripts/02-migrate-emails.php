@@ -22,7 +22,7 @@ $localDbCredentials = getLocalDatabaseCredentials();
 
 $websites = getRemoteWebsites();
 if (!$websites) {
-    exit("Failed to retrieve or parse websites list.\n");
+    output("Failed to retrieve or parse websites list.", exitCode: 1);
 }
 
 
@@ -31,7 +31,7 @@ foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     $state = $domainInfo['state'] ?? '';
 
-    echo "Processing domain: $domainName\n";
+    output("Processing domain: $domainName", nlBefore: true);
 
     // Retrieve emails for the current domain
     $emailsJson = executeRemoteSSHCommand("cyberpanel listEmailsJson --domainName $domainName 2>/dev/null", sudo: true);
@@ -41,7 +41,7 @@ foreach ($websites as $domainInfo) {
     $emails = parseJson($emailsJson);
 
     if (!$emails) {
-        echo "Failed to retrieve or parse emails for domain: $domainName\n";
+        output("Failed to retrieve or parse emails for domain: $domainName", error: true);
         continue;
     }
 
@@ -51,27 +51,29 @@ foreach ($websites as $domainInfo) {
         $username = explode('@', $email)[0];
         $emailPassword = bin2hex(random_bytes(6)); // Generate a random password
 
-        echo "Creating email account for $email in domain $domainName \n";
+        output("Creating email account for $email in domain $domainName", nlBefore: true);
 
         $createEmailCommand = "cyberpanel createEmail --domainName \"$domainName\" --userName \"$username\" --password \"$emailPassword\" 2>&1";
         $createEmailOutput = shellExec($createEmailCommand);
 
         $result = json_decode($createEmailOutput, true);
         if (!$result) {
-            if (!str_contains($createEmailOutput, '{"success": 1, "errorMessage": "This account already exists!"}')) {
-                exit("Failed to create email account for $email in domain $domainName $createEmailOutput\n");
+            if (str_contains($createEmailOutput, '{"success": 1, "errorMessage": "This account already exists!"}')) {
+                output("Email $email already exists.");
+            } else {
+                output("Failed to create email account for $email in domain $domainName $createEmailOutput", exitCode: 1);
             }
         } else if (!$result['success']) {
             if (str_contains($result['errorMessage'], 'This account already exists!')) {
-                echo "Email $email already exists.\n";
+                output("Email $email already exists.");
             } elseif (str_contains($createEmailOutput, '{"success": 1, "errorMessage": "None"}')) {
                 //
             } else {
-                exit("Failed to create email account for $email in domain $domainName $createEmailOutput\n");
+                output("Failed to create email account for $email in domain $domainName $createEmailOutput", exitCode: 1);
             }
         }
 
-        echo "Email: $email created\n";
+        output("Email: $email created", success: true);
     }
 }
 
@@ -79,9 +81,9 @@ foreach ($websites as $domainInfo) {
 foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     if ($domainName) {
-        echo "Updating credentials for $domainName...\n";
+        output("Updating credentials for $domainName...", nlBefore: true);
         updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $domainName);
     }
 }
 
-echo "Email migration and database update completed.\n";
+output("Email migration completed.", success: true);

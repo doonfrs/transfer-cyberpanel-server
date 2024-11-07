@@ -4,7 +4,7 @@
 
 function executeRemoteSqlCommand($query, $remoteCredentials)
 {
-    $query = str_replace("\n", " ", $query);
+    $query = str_replace("", " ", $query);
     $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
 
     return executeRemoteSSHCommand($command);
@@ -12,10 +12,10 @@ function executeRemoteSqlCommand($query, $remoteCredentials)
 
 function queryRemoteSql($query, $remoteCredentials)
 {
-    $query = str_replace("\n", " ", $query);
+    $query = str_replace("", " ", $query);
     $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
 
-    $output = executeRemoteSSHCommand($command);
+    $output = executeRemoteSSHCommand($command, failOnNoOutput: true);
     $lines = explode("\n", trim($output));
     $result = [];
     $header = array_shift($lines);
@@ -27,8 +27,12 @@ function queryRemoteSql($query, $remoteCredentials)
     return $result;
 }
 
-function executeRemoteSSHCommand($command, $saveToFile = null, $sudo = false)
-{
+function executeRemoteSSHCommand(
+    $command,
+    $saveToFile = null,
+    $sudo = false,
+    $failOnNoOutput = false
+) {
     $config = readConfig();
 
     // Remote server details
@@ -48,6 +52,10 @@ function executeRemoteSSHCommand($command, $saveToFile = null, $sudo = false)
     }
 
     $output = shellExec($sshCommand);
+
+    if (empty($output) && $failOnNoOutput) {
+        output("Failed to retrieve data from command\n$command", exitCode: 1);
+    }
 
     if ($saveToFile) {
         shellExec("sed -i '\${/Connection to [0-9]\{1,3\}\(\.[0-9]\{1,3\}\)\{3\} closed\./d}' $saveToFile");
@@ -69,8 +77,8 @@ function parseJson($json)
     }
 
     if (json_last_error() !== JSON_ERROR_NONE) {
-        echo "Error decoding JSON: " . json_last_error_msg() . "\n";
-        echo "Raw JSON response:\n$json\n";
+        output("Error decoding JSON: " . json_last_error_msg() . "");
+        output("Raw JSON response:\n$json");
         return null;
     }
 
@@ -98,7 +106,7 @@ function sshCopyId()
 
 
     if (!file_exists(getenv("HOME") . "/.ssh/id_rsa.pub")) {
-        echo "SSH key not found in ~/.ssh/id_rsa.pub we will generate it now.\n";
+        output("SSH key not found in ~/.ssh/id_rsa.pub we will generate it now.");
         // Generate the SSH key
         $sshKeyCommand = "ssh-keygen -t rsa -b 4096 -P '' -f ~/.ssh/id_rsa -q";
         shellExec($sshKeyCommand . " 2>&1");
@@ -111,16 +119,16 @@ function sshCopyId()
 
     // If SSH key authentication fails, set up the keys using ssh-copy-id
     if (strpos($output, 'SSH connection established') === false) {
-        echo "SSH key-based authentication is not set up. Setting it up now...\n";
+        output("SSH key-based authentication is not set up. Setting it up now...");
 
         // Alert the user before running ssh-copy-id
-        echo "We are about to run ssh-copy-id to set up passwordless SSH access to $remoteIp. This will require your SSH password once.\n";
+        output("We are about to run ssh-copy-id to set up passwordless SSH access to $remoteIp. This will require your SSH password once.");
 
         // Use sshpass with ssh-copy-id to set up key-based authentication
         $sshCopyIdCommand = "sshpass -p '$remotePassword' ssh-copy-id -i ~/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -p $remotePort $remoteUser@$remoteIp";
         $output = shellExec($sshCopyIdCommand . " 2>&1");
 
-        echo "ssh-copy-id output:\n$output\n";
+        output("ssh-copy-id output:\n$output");
     }
 }
 
@@ -144,7 +152,7 @@ function getDatabaseCredentialsFromSettings($settingsContent, $dbName)
 {
     preg_match_all('/^DATABASES\s*=\s*\{(.+)^\}/ms', $settingsContent, $output_array);
     if (!isset($output_array[1][0])) {
-        exit("Failed to retrieve database credentials, the settings file is probably not valid.\n\n$settingsContent");
+        output("Failed to retrieve database credentials, the settings file is probably not valid.\n\n$settingsContent", exitCode: 1);
     }
     $settingsContent = $output_array[1][0];
 
@@ -177,7 +185,7 @@ function getRemoteDatabaseCyberPanelCredentials()
     $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
 
     if (!$settings) {
-        exit("Failed to retrieve remote database credentials.\n");
+        output("Failed to retrieve remote database credentials.", exitCode: 1);
     }
 
     return getDatabaseCredentialsFromSettings($settings, 'default');
@@ -195,7 +203,7 @@ function getRemoteDatabaseRootCredentials()
     $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
 
     if (!$settings) {
-        exit("Failed to retrieve remote database credentials.\n");
+        output("Failed to retrieve remote database credentials.", exitCode: 1);
     }
 
     return getDatabaseCredentialsFromSettings($settings, 'rootdb');
@@ -208,7 +216,7 @@ function getLocalDatabaseCredentials()
     $settings = trim(file_get_contents($settingsPath));
 
     if (!$settings) {
-        exit("Failed to retrieve remote database credentials.\n");
+        output("Failed to retrieve remote database credentials.", exitCode: 1);
     }
 
     return getDatabaseCredentialsFromSettings($settings, 'default');
@@ -221,7 +229,7 @@ function getLocalDatabaseRootCredentials()
     $settings = trim(file_get_contents($settingsPath));
 
     if (!$settings) {
-        exit("Failed to retrieve remote database credentials.\n");
+        output("Failed to retrieve remote database credentials.", exitCode: 1);
     }
 
     return getDatabaseCredentialsFromSettings($settings, 'rootdb');
@@ -243,7 +251,7 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
     FROM loginSystem_administrator WHERE userName = '$user'";
     $remoteData = queryRemoteSql($query, $remoteDbCredentials);
     if (!$remoteData) {
-        echo "Failed to retrieve data for $user from remote database.\n";
+        output("No email data for $user found on remote server.");
         return;
     }
     foreach ($remoteData as $row) {
@@ -255,8 +263,9 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
         $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
 
         $output = shellExec($localUpdateCommand);
-
-        echo "Updated $user locally: $output.\n";
+        if ($output) {
+            output("Failed to update $user locally, error: $output", exitCode: 1);
+        }
     }
 }
 
@@ -277,7 +286,6 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
 
     $remoteData = queryRemoteSql($query, $remoteDbCredentials);
     if (!$remoteData) {
-        echo "Failed to retrieve data for $domain from remote database.\n";
         return;
     }
 
@@ -292,7 +300,9 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
 
         $output = shellExec($localUpdateCommand);
 
-        echo "Updated $email locally: $output.\n";
+        if ($output) {
+            output("failed  to update email $domain locally, error: $output", exitCode: 1);
+        }
     }
 }
 
@@ -300,7 +310,7 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
 function shellExec($command)
 {
     if (isVerboseMode()) {
-        echo $command . "\n";
+        output($command . "");
     }
 
     return trim(shell_exec($command) ?? '');
@@ -330,9 +340,48 @@ function checkPhpVersion()
     $requiredVersion = '8.1.0';
     $currentVersion = PHP_VERSION;
     if (version_compare($currentVersion, $requiredVersion, '<')) {
-        echo "Current PHP version is $currentVersion, which is lower than the required version 8.1.0.\n";
-        echo "Please upgrade PHP to version 8.1 or higher.\n";
+        output("Current PHP version is $currentVersion, which is lower than the required version 8.1.0.");
+        output("Please upgrade PHP to version 8.1 or higher.");
         exit(1); // Exit with a non-zero status to indicate failure
+    }
+}
+
+function output(
+    $message,
+    ?bool $error = false,
+    ?bool $success = false,
+    $exitCode = null,
+    $nl = true,
+    $nlBefore = false
+) {
+    // Get current date and time
+    $timestamp = date('Y-m-d H:i:s');
+
+    // Set color codes
+    $colorStart = "";
+    $colorEnd = "\033[0m";  // Reset color at the end of the message
+
+    // Determine color based on log level
+    if ($error || ($exitCode !== 0 && $exitCode !== null)) {
+        $colorStart = "\033[31m";  // Red for errors
+    } elseif ($success) {
+        $colorStart = "\033[32m";  // Green for success
+    }
+
+
+    if ($nlBefore) {
+        echo ("\n");
+    }
+
+    // Display the formatted message with timestamp and color
+    echo ("{$colorStart}[$timestamp] $message{$colorEnd}");
+
+    if ($nl) {
+        echo ("\n");
+    }
+
+    if ($exitCode !== null) {
+        exit($exitCode);
     }
 }
 

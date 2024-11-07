@@ -17,7 +17,7 @@ $remotePassword = $config['remote']['password'];
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 $websites = getRemoteWebsites();
 if (!$websites) {
-    exit("Failed to retrieve or parse websites list.\n");
+    output("Failed to retrieve or parse websites list.", exitCode: 1);
 }
 
 // Loop through each website to migrate data
@@ -38,14 +38,15 @@ foreach ($websites as $site) {
     }
 
     // Minimal logging output
-    echo "Migrating website: $domain...\n";
+    output("Migrating website: $domain...", nlBefore: true);
     transferWebsiteData($remotePath, $localPath);
     setLocalOwnershipFromParent($domain);
-    echo "Migration completed for website: $domain.\n";
+    output("Migration completed for website: $domain.", success: true);
 }
 
-
+output("Restarting LiteSpeed.", nlBefore: true);
 restartLiteSpeed();
+output("Data migration completed.", success: true);
 
 // Function to transfer website data using rsync with sudo on the remote side
 function transferWebsiteData($remotePath, $localPath)
@@ -54,7 +55,11 @@ function transferWebsiteData($remotePath, $localPath)
 
     // Include the remote port using -p in the SSH command
     $rsyncCommand = "rsync -a --info=progress2 -e 'ssh -p $remotePort' --rsync-path=\"sudo -n rsync\" $remoteUser@$remoteIp:$remotePath/ $localPath/";
-    shellExec($rsyncCommand . " 2>&1");
+    $output = shellExec($rsyncCommand . " 2>&1");
+
+    if (str_contains($output, "error")) {
+        output("Rsync failed. $output, failed command:\n$rsyncCommand\n", exitCode: 1);
+    }
 }
 
 // Function to set ownership of the local public_html directory based on /home/$domain owner
@@ -73,15 +78,15 @@ function setLocalOwnershipFromParent($domain)
         $chownCommand = "chown -R $localOwner:$localGroup $targetDir";
         $output = shellExec($chownCommand . " 2>&1");
         if ($output) {
-            exit("Unable to set ownership for $domain. $output\n");
+            output("Unable to set ownership for $domain. $output", exitCode: 1);
         }
 
         $chmodCommand = "chmod -R 755 $targetDir";
         $output = shellExec($chmodCommand . " 2>&1");
         if ($output) {
-            exit("Unable to set pemission for $domain. $output\n");
+            output("Unable to set pemission for $domain. $output", exitCode: 1);
         }
     } else {
-        exit("Unable to set local ownership for $domain.\n");
+        output("Unable to set local ownership for $domain.", exitCode: 1);
     }
 }

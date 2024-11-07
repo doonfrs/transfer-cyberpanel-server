@@ -23,7 +23,7 @@ $remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
 
 $websites = getRemoteWebsites();
 if (!$websites) {
-    exit("Failed to retrieve or parse websites list.\n");
+    output("Failed to retrieve or parse websites list.", exitCode: 1);
 }
 
 // Loop through each website to migrate data
@@ -32,12 +32,15 @@ foreach ($websites as $site) {
     $websiteId = $site['id'] ?? '';
 
     // Minimal logging output
-    echo "Migrating website databases: $domain...\n";
+    output("Migrating website databases: $domain...", nlBefore: true);
     transferWebsiteDatabases($domain);
-    echo "Migration completed for databases for website: $domain.\n";
+    output("Migration completed for databases for website: $domain.", success: true);
 }
 
 
+output("Restarting LiteSpeed.", nlBefore: true);
+restartLiteSpeed();
+output("Migration of databases completed.", success: true);
 
 
 // Step 4: Update Local Database with Remote Data
@@ -58,11 +61,14 @@ function transferWebsiteDatabases($domain)
         WHERE websiteFunctions_websites.domain = '$domain'";
 
     $remoteData = queryRemoteSql($query, $remoteDbCredentials);
+    if (!$remoteData) {
+        return;
+    }
 
-    echo "Remote databases: " . count($remoteData) . "\n" . implode(', ', array_column($remoteData, 'dbName')) . "\n";
+    output("Remote databases: " . count($remoteData) . "" . implode(', ', array_column($remoteData, 'dbName')) . "");
 
     if (!$remoteData && !is_array($remoteData)) {
-        exit("Failed to retrieve data for $domain from remote database.\n");
+        output("Failed to retrieve data for $domain from remote database.", exitCode: 1);
     }
 
     if (!is_dir('mysqldumps')) {
@@ -73,7 +79,7 @@ function transferWebsiteDatabases($domain)
         $dbName = trim($row['dbName']);
         $dbUser = trim($row['dbUser']);
 
-        echo "Creating database $dbName for $domain...\n";
+        output("Creating database $dbName for $domain...");
 
         $randomPassword = bin2hex(random_bytes(6));
         $command = "cyberpanel createDatabase --databaseWebsite $domain --dbName $dbName --dbUsername $dbUser --dbPassword '$randomPassword'";
@@ -83,22 +89,22 @@ function transferWebsiteDatabases($domain)
         $result = json_decode($output, true);
         if (!$result) {
             if (!str_contains($output, 'This database or user is already taken.')) {
-                exit("Failed to create database. $output\n");
+                output("Failed to create database. $output", exitCode: 1);
             }
         } elseif (!$result['success']) {
-            exit("Failed to create database. $output\n");
+            output("Failed to create database. $output", exitCode: 1);
         }
 
 
         if ($dbUser != 'admin') {
-            echo "Retrieving mysql passwords for $dbUser / $domain...\n";
+            output("Retrieving mysql passwords for $dbUser / $domain...");
             //update mysql user
             $query = "SELECT Password,authentication_string FROM mysql.user WHERE User = '$dbUser'";
 
             $result = queryRemoteSql($query, $remoteRootDbCredentials);
 
             if (!$result) {
-                exit("Failed to mysql passwords for $dbUser / $domain from remote database.\n");
+                output("Failed to mysql passwords for $dbUser / $domain from remote database.", exitCode: 1);
             }
 
             $result = $result[0];
@@ -107,25 +113,24 @@ function transferWebsiteDatabases($domain)
             $output = shellExec("mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} -e \"ALTER USER '$dbUser'@'localhost' IDENTIFIED BY PASSWORD '$password'\"");
 
             if ($output) {
-                exit("Failed to mysql passwords for $dbUser / $domain from remote database $output.\n");
+                output("Failed to mysql passwords for $dbUser / $domain from remote database $output.", exitCode: 1);
             }
         }
 
-        
+
         $dumpFileName = "mysqldumps/$dbName-$dbUser.sql";
-        echo "Retrieving mysql dump for $dbName $dbUser...\n";
+        output("Retrieving mysql dump for $dbName $dbUser...");
         executeRemoteSSHCommand(
             "mysqldump -u{$remoteRootDbCredentials['user']} -p{$remoteRootDbCredentials['password']} $dbName",
             saveToFile: $dumpFileName
         );
 
-        echo "Running mysql dump locally...\n";
+        output("Running mysql dump locally...");
         $localUpdateCommand = "mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} $dbName < $dumpFileName";
         $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
         $output = shellExec($localUpdateCommand);
         if ($output) {
-            exit("Failed to mysql passwords for $dbUser / $domain from remote database $output.\n");
+            output("Failed to mysql passwords for $dbUser / $domain from remote database $output.", exitCode: 1);
         }
-        echo "Created the database $dbName $dbUser on locally.\n";
     }
 }

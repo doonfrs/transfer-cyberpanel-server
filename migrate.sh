@@ -39,22 +39,23 @@ fi
 
 $php81 migrate-scripts/00-migrate-info.php
 
-echo "if You are sure about that, type 'yes' and press enter: ";
+echo "if You are sure about that, type 'yes' and press enter: "
 read -r answer
 if [ "$answer" != "yes" ]; then
-    echo "Aborting...";
-    exit 1;
+    echo "Aborting..."
+    exit 1
 fi
 
 echo "Running migrations..."    
-echo -e "**********Migrating websites**********\n\n" && \
+echo -e "\n**********Migrating websites**********" && \
 $php81 migrate-scripts/01-migrate-websites.php $verbose && \
-echo -e "**********Migrating emails**********\n\n" && \
+echo -e "\n**********Migrating emails**********" && \
 $php81 migrate-scripts/02-migrate-emails.php $verbose && \
-echo -e "**********Migrating databases**********\n\n" && \
+echo -e "\n**********Migrating databases**********" && \
 $php81 migrate-scripts/03-migrate-websites-databases.php $verbose && \
-echo -e "**********Migrating data**********\n\n" && \
+echo -e "\n**********Migrating data**********" && \
 $php81 migrate-scripts/04-migrate-websites-data.php $verbose && \
-echo -e "**********Migrating vmail**********\n\n" && \
+echo -e "\n**********Migrating email data**********" && \
 $php81 migrate-scripts/05-migrate-websites-vmail.php $verbose
 
+echo -e "\n\nAll migrations completed."
