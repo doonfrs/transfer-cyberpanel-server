@@ -1,7 +1,6 @@
 #!/bin/bash
 
 php81="/usr/local/lsws/lsphp81/bin/php"
-
 verbose=""
 
 for arg in "$@"; do
@@ -38,7 +37,7 @@ if [ ! -f "config.ini" ]; then
 fi
 
 
-php migrate-scripts/00-migrate-info.php
+$php81 migrate-scripts/00-migrate-info.php
 
 echo "if You are sure about that, type 'yes' and press enter: ";
 read -r answer
