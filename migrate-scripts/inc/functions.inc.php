@@ -4,7 +4,7 @@
 
 function executeRemoteSqlCommand($query, $remoteCredentials)
 {
-    $query = str_replace("", " ", $query);
+    $query = str_replace("\n", " ", $query);
     $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
 
     return executeRemoteSSHCommand($command);
@@ -12,10 +12,30 @@ function executeRemoteSqlCommand($query, $remoteCredentials)
 
 function queryRemoteSql($query, $remoteCredentials)
 {
-    $query = str_replace("", " ", $query);
+    $query = str_replace("\n", " ", $query);
     $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
 
     $output = executeRemoteSSHCommand($command, failOnNoOutput: true);
+    $lines = explode("\n", trim($output));
+    $result = [];
+    $header = array_shift($lines);
+    $header = explode("\t", $header);
+    $header = array_map('trim', $header);
+    foreach ($lines as $line) {
+        $result[] = array_combine($header, explode("\t", $line));
+    }
+    return $result;
+}
+
+function queryLocalSql($query, $localDbCredentials)
+{
+    $query = str_replace("\n", " ", $query);
+    $command = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} --batch -e \"$query\" {$localDbCredentials['name']}";
+
+    $output = shellExec($command, failOnNoOutput: true);
+    if (!$output) {
+        return null;
+    }
     $lines = explode("\n", trim($output));
     $result = [];
     $header = array_shift($lines);
@@ -177,9 +197,18 @@ function getDatabaseCredentialsFromSettings($settingsContent, $dbName)
 function getRemoteDatabaseCyberPanelCredentials()
 {
 
-    $config = readConfig();
-    $remotePassword = $config['remote']['password'];
+    $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
+    $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
 
+    if (!$settings) {
+        output("Failed to retrieve remote database credentials.", exitCode: 1);
+    }
+
+    return getDatabaseCredentialsFromSettings($settings, 'default');
+}
+
+function getLocalDatabaseCyberPanelCredentials()
+{
 
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
     $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
@@ -194,11 +223,6 @@ function getRemoteDatabaseCyberPanelCredentials()
 
 function getRemoteDatabaseRootCredentials()
 {
-
-    $config = readConfig();
-    $remotePassword = $config['remote']['password'];
-
-
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
     $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
 
@@ -307,13 +331,20 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
 }
 
 
-function shellExec($command)
-{
+function shellExec(
+    $command,
+    $failOnNoOutput = false
+) {
     if (isVerboseMode()) {
         output($command . "");
     }
+    $output =  trim(shell_exec($command) ?? '');
 
-    return trim(shell_exec($command) ?? '');
+    if (empty($output) && $failOnNoOutput) {
+        output("Failed to execute command: $command", exitCode: 1);
+    }
+
+    return $output;
 }
 
 

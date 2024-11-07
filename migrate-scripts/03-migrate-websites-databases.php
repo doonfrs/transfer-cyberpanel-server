@@ -67,6 +67,9 @@ function transferWebsiteDatabases($domain)
 
     output("Remote databases: " . count($remoteData) . "" . implode(', ', array_column($remoteData, 'dbName')) . "");
 
+    $localDatabases = queryLocalSql($query, $localDbCredentials);
+
+
     if (!$remoteData && !is_array($remoteData)) {
         output("Failed to retrieve data for $domain from remote database.", exitCode: 1);
     }
@@ -78,6 +81,11 @@ function transferWebsiteDatabases($domain)
     foreach ($remoteData as $row) {
         $dbName = trim($row['dbName']);
         $dbUser = trim($row['dbUser']);
+
+        if (array_search($dbName, array_column($localDatabases, 'dbName')) !== false) {
+            output("Database $dbName already exists for $domain, if you want to replace it, please drop it manually first.");
+            continue;
+        }
 
         output("Creating database $dbName for $domain...");
 
@@ -100,7 +108,6 @@ function transferWebsiteDatabases($domain)
             output("Retrieving mysql passwords for $dbUser / $domain...");
             //update mysql user
             $query = "SELECT Password,authentication_string FROM mysql.user WHERE User = '$dbUser'";
-
             $result = queryRemoteSql($query, $remoteRootDbCredentials);
 
             if (!$result) {
