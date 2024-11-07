@@ -86,4 +86,4 @@ foreach ($websites as $domainInfo) {
     }
 }
 
-output("Email migration completed.", success: true);
+output("Email migration completed.", success: true, nlBefore: true);

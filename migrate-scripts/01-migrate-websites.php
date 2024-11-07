@@ -168,4 +168,4 @@ foreach ($websites as $site) {
     updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $owner);
 }
 
-output("Website migration completed.", success: true);
+output("Website migration completed.", success: true, nlBefore: true);

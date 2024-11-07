@@ -46,7 +46,7 @@ foreach ($websites as $site) {
 
 output("Restarting LiteSpeed.", nlBefore: true);
 restartLiteSpeed();
-output("Data migration completed.", success: true);
+output("Data migration completed.", success: true, nlBefore: true);
 
 // Function to transfer website data using rsync with sudo on the remote side
 function transferWebsiteData($remotePath, $localPath)
