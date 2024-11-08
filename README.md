@@ -4,6 +4,10 @@ This repository provides a set of scripts to automate the migration of websites,
 
 > **Important Note**: Before starting, it is recommended to take a snapshot of both the source and destination servers to ensure data safety.
 
+### 🌟 Please Star the Repo!
+
+If you find this plugin helpful, please consider starring the repository ⭐! Your support helps others discover this tool and motivates further improvements.
+
 ## Why Use This Script?
 
 This script offers a robust alternative to CyberPanel’s built-in transfer functionality, addressing common issues and improving performance:
@@ -108,6 +112,17 @@ Migrating websites data...
 Migrating vmail...
 All migrations completed.
 ```
+
+### Support me
+
+If you’d like to support further development or show appreciation, donations are welcome! You can make a one-time donation through PayPal:
+
+[Donate via PayPal](https://www.paypal.com/donate/?hosted_button_id=R8SL63KKCGL82)
+
+
+### Paid Support
+
+If you need paid support, development or have any questions, feel free to reach out via [Telegram](https://t.me/doonfrs).
 
 ## Additional Notes
 
