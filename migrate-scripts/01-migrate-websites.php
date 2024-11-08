@@ -7,12 +7,6 @@ checkPhpVersion();
 // Load configurations from the ini file
 $config = readConfig();
 
-// Remote server details
-$remoteIp = $config['remote']['ip'];
-$remotePort = $config['remote']['port'];
-$remoteUser = $config['remote']['user'];
-$remotePassword = $config['remote']['password'];
-
 $ssl = $config['config']['ssl'] ?? 0;
 $dkim = $config['config']['dkim'] ?? 0;
 

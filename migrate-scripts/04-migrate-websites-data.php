@@ -11,7 +11,6 @@ $config = readConfig();
 $remoteIp = $config['remote']['ip'];
 $remotePort = $config['remote']['port'];
 $remoteUser = $config['remote']['user'];
-$remotePassword = $config['remote']['password'];
 
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not

@@ -4,11 +4,10 @@ php81="/usr/local/lsws/lsphp81/bin/php"
 verbose=""
 
 for arg in "$@"; do
-  if [[ "$arg" == "-v" ]]; then
-    verbose="-v"
-  fi
+    if [[ "$arg" == "-v" ]]; then
+        verbose="-v"
+    fi
 done
-
 
 if [ ! -x "$php81" ]; then
     echo "PHP 8.1 is not installed at $php81_path."
@@ -16,16 +15,20 @@ if [ ! -x "$php81" ]; then
     exit 1
 fi
 
-
-if ! type -P sshpass &> /dev/null
-then
+if ! type -P sshpass &>/dev/null; then
     echo "sshpass is not installed. Installing it now..."
-    
+
     # Update package list and install sshpass
     sudo apt update
-    sudo apt install -y sshpass
+    install_log=$(sudo apt install -y sshpass 2>&1)
 
-    echo "sshpass has been successfully installed."
+    if ! type -P sshpass &>/dev/null; then
+        echo "Installation of sshpass failed. See the log below:"
+        echo "$install_log"
+        exit 1
+    else
+        echo "sshpass has been successfully installed."
+    fi
 fi
 
 # Check if config.ini exists
@@ -36,7 +39,6 @@ if [ ! -f "config.ini" ]; then
     exit 1
 fi
 
-
 $php81 migrate-scripts/00-migrate-info.php
 
 echo "if You are sure about that, type 'yes' and press enter: "
@@ -45,7 +47,6 @@ if [ "$answer" != "yes" ]; then
     echo "Aborting..."
     exit 1
 fi
-
 
 echo "Running migrations..."
 echo -e "\n**********Migrating websites**********"

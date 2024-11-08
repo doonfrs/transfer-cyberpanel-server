@@ -37,10 +37,23 @@ This script offers a robust alternative to CyberPanel’s built-in transfer func
     cp config.ini.template config.ini
     ```
 2. Edit `config.ini` to include the remote server details:
+```
+[remote]
+ip = 190.190.190.190
+port = 22
+user = rootuser
+password = "123"
+
+[config]
+ssl=1
+dkim=1
+```
    - `ip`: IP address of the remote server
    - `port`: SSH port for the remote server
    - `user`: SSH username for the remote server
-   - `password`: SSH password for non-interactive login
+   - `password`: SSH password for non-interactive login, if you don't set the password, we will use sudo without password, the script will assume that you already added ssh key for the server, also if you did not set the password, you have to add cat and cyberpanel commands to sudoers, you may remove them later for security reasons.
+   - `ssl`: if set to 1, we will use ssl 1 option when creating cyberpanel website
+   - `dkim`: if set to 1, we will use dkim 1 option when creating cyberpanel website
 
    **Note**: Ensure these credentials have sufficient permissions for executing commands on the remote server.
 
@@ -50,16 +63,23 @@ This script offers a robust alternative to CyberPanel’s built-in transfer func
     ```bash
     ./migrate.sh
     ```
-
-2. If `config.ini` is not found, the script will prompt you to create it based on the provided template.
-
-3. **Confirmation Prompt**: You will be prompted to confirm migration. Type `yes` to continue or any other input to abort.
-
-4. **Individual Scripts**: Each script can also be run independently for specific migrations:
+2. Run the migration in verbose mode ( take care that the passwords will be in the bash history )
     ```bash
-    php migrate-scripts/01-migrate-websites.php
+    ./migrate.sh -v
     ```
 
+3. If `config.ini` is not found, the script will prompt you to create it based on the provided template.
+
+4. **Confirmation Prompt**: You will be prompted to confirm migration. Type `yes` to continue or any other input to abort.
+
+5. **Individual Scripts**: Each script can also be run independently for specific migrations:
+    ```bash
+    /usr/local/lsws/lsphp81/bin/php migrate-scripts/01-migrate-websites.php
+    ```
+    run in verbose mode
+    ```bash
+    /usr/local/lsws/lsphp81/bin/php migrate-scripts/01-migrate-websites.php -v
+    ```
 ## Scripts Overview
 
 1. **00-migrate-info.php**: Provides an overview of the migration process, ensuring all required configurations are in place.

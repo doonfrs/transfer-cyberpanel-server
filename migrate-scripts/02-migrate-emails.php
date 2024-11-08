@@ -4,15 +4,6 @@ require_once __DIR__ . '/inc/functions.inc.php';
 
 checkPhpVersion();
 
-// Load configurations from the ini file
-$config = readConfig();
-
-// Remote server details
-$remoteIp = $config['remote']['ip'];
-$remotePort = $config['remote']['port'];
-$remoteUser = $config['remote']['user'];
-$remotePassword = $config['remote']['password'];
-
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 

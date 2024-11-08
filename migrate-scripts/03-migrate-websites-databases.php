@@ -4,15 +4,6 @@ require_once __DIR__ . '/inc/functions.inc.php';  // Include common functions li
 
 checkPhpVersion();
 
-// Load configurations
-$config = readConfig();
-
-// Remote server details
-$remoteIp = $config['remote']['ip'];
-$remotePort = $config['remote']['port'];
-$remoteUser = $config['remote']['user'];
-$remotePassword = $config['remote']['password'];
-
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 
@@ -48,12 +39,6 @@ function transferWebsiteDatabases($domain)
 {
     global $remoteRootDbCredentials, $localDbCredentials,
         $remoteDbCredentials, $localRootDbCredentials;
-    $config = readConfig();
-
-    // Remote server details
-    $remoteIp = $config['remote']['ip'];
-    $remoteUser = $config['remote']['user'];
-    $remotePort = $config['remote']['port'];
 
     // Fetch remote email data for this domain
     $query = "SELECT dbName,dbUser FROM databases_databases

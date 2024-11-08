@@ -59,11 +59,15 @@ function executeRemoteSSHCommand(
     $remoteIp = $config['remote']['ip'];
     $remotePort = $config['remote']['port'];
     $remoteUser = $config['remote']['user'];
-    $remotePassword = $config['remote']['password'];
+    $remotePassword = trim($config['remote']['password'] ?? '');
 
     if ($sudo) {
-        $remotePassword = str_replace('$', '\$', $remotePassword);
-        $command = "echo '$remotePassword' | sudo -S $command";
+        if ($remotePassword) {
+            $remotePassword = str_replace('$', '\$', $remotePassword);
+            $command = "echo '$remotePassword' | sudo -S $command";
+        } else {
+            $command = "sudo $command";
+        }
     }
 
     $sshCommand = "ssh -p $remotePort -tt $remoteUser@$remoteIp \"$command\" 2>&1";
@@ -122,6 +126,10 @@ function sshCopyId()
     $remotePort = $config['remote']['port'];
     $remoteUser = $config['remote']['user'];
     $remotePassword = $config['remote']['password'];
+
+    if (!$remotePassword) {
+        return;
+    }
 
 
 
@@ -381,12 +389,18 @@ function output(
     $message,
     ?bool $error = false,
     ?bool $success = false,
+    ?bool $info = false,
     $exitCode = null,
     $nl = true,
-    $nlBefore = false
+    $nlBefore = false,
+    ?bool $writeDate = true,
 ) {
-    // Get current date and time
-    $timestamp = date('Y-m-d H:i:s');
+
+    $timestamp = null;
+
+    if ($writeDate) {
+        $timestamp = "[ " . date('Y-m-d H:i:s') . " ]";
+    }
 
     // Set color codes
     $colorStart = "";
@@ -397,6 +411,8 @@ function output(
         $colorStart = "\033[31m";  // Red for errors
     } elseif ($success) {
         $colorStart = "\033[32m";  // Green for success
+    } elseif ($info) {
+        $colorStart = "\033[34m";  // Blue for info
     }
 
 
@@ -405,7 +421,7 @@ function output(
     }
 
     // Display the formatted message with timestamp and color
-    echo ("{$colorStart}[$timestamp] $message{$colorEnd}");
+    echo ("{$colorStart}$timestamp $message{$colorEnd}");
 
     if ($nl) {
         echo ("\n");

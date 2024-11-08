@@ -9,19 +9,25 @@ checkPhpVersion();
 // Load configurations from the ini file
 $config = readConfig();
 
-// Remote server details
-$remoteIp = $config['remote']['ip'];
-$remotePort = $config['remote']['port'];
 $remoteUser = $config['remote']['user'];
-$remotePassword = $config['remote']['password'];
+$remotePassword = trim($config['remote']['password'] ?? '');
 
-output("**********************************************");
-output("1 - Please make sure that you are running as root or sudo.");
-output("");
-output("2 - Please add rsync to the sudoers filein the remote server.");
-output("In remote server shell type sudo visudo, and add the following line:");
-output("$remoteUser ALL=(ALL) NOPASSWD: /usr/bin/rsync");
-output("Then save and exit.");
-output("**********************************************");
-output("");
-output("");
+output('', writeDate: false);
+output("**********************************************", writeDate: false);
+output("
+1 - Please make sure that you are running as root or sudo.
+2 - Please add rsync to the sudoers filein the remote server.
+In remote server shell type sudo visudo, and add the following line:
+$remoteUser ALL=(ALL) NOPASSWD: /usr/bin/rsync
+", info: true, writeDate: false);
+
+if (!$remotePassword) {
+    output("
+Also, because you did not provide a password for the remote server, you will need to add the following line to the remote server's sudoers file:
+$remoteUser ALL=(ALL) NOPASSWD: /usr/bin/cat
+$remoteUser ALL=(ALL) NOPASSWD: /usr/bin/cyberpanel
+", info: true, writeDate: false);
+}
+
+output("**********************************************", writeDate: false);
+output("", writeDate: false);
