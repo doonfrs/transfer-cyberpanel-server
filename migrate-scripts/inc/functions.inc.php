@@ -288,7 +288,10 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
     }
     foreach ($remoteData as $row) {
         if (!isset($row['password'])) {
-            output("No password for $user found on remote server, returned row: " . json_encode($row) . "\nReturned data: " . json_encode($remoteData) . "\n", exitCode: 1);
+            output("No password for $user found on remote server, returned row: " . json_encode($row) . "\nReturned data: " . json_encode($remoteData) . "\n", error: true);
+            //press anykey to continue
+            readLine();
+            continue;
         }
 
         $password = $row['password'];
