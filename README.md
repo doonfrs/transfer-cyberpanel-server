@@ -63,24 +63,24 @@ dkim=1
 
 ## Usage
 
-. Run the migration by executing `migrate.sh`:
+1. Run the migration by executing `migrate.sh`:
     ```bash
     ./migrate.sh
     ```
-. Run the migration in verbose mode ( take care that the passwords will be in the bash history )
+2. Run the migration in verbose mode ( take care that the passwords will be in the bash history )
     ```bash
     ./migrate.sh -v
     ```
-. Run the migration for specific websites
+3. Run the migration for specific websites
     ```bash
     ./migrate.sh --website=mywebsite.com --website=myotherwebsite.com
     ```
     
-. If `config.ini` is not found, the script will prompt you to create it based on the provided template.
+3. If `config.ini` is not found, the script will prompt you to create it based on the provided template.
 
-. **Confirmation Prompt**: You will be prompted to confirm migration. Type `yes` to continue or any other input to abort.
+4. **Confirmation Prompt**: You will be prompted to confirm migration. Type `yes` to continue or any other input to abort.
 
-. **Individual Scripts**: Each script can also be run independently for specific migrations:
+5. **Individual Scripts**: Each script can also be run independently for specific migrations:
     ```bash
     /usr/local/lsws/lsphp81/bin/php migrate-scripts/01-migrate-websites.php
     ```
