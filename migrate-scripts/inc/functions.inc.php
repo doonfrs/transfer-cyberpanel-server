@@ -287,7 +287,22 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
         return;
     }
     foreach ($remoteData as $row) {
-        extract($row);
+        if (!isset($row['password'])) {
+            output("No password for $user found on remote server, returned row: " . json_encode($row) . "\nReturned data: " . json_encode($remoteData) . "\n", exitCode: 1);
+        }
+
+        $password = $row['password'];
+        $firstName = $row['firstName'];
+        $lastName = $row['lastName'];
+        $email = $row['email'];
+        $type = $row['type'];
+        $api = $row['api'];
+        $securityLevel = $row['securityLevel'];
+        $state = $row['state'];
+        $initWebsitesLimit = $row['initWebsitesLimit'];
+        $twoFA = $row['twoFA'];
+        $secretKey = $row['secretKey'];
+
         // Prepare the local UPDATE statement
         $updateQuery = "UPDATE loginSystem_administrator SET password='$password', firstName='$firstName',lastName='$lastName',email='$email',type='$type',api='$api',securityLevel='$securityLevel',state='$state',initWebsitesLimit='$initWebsitesLimit',twoFA='$twoFA',secretKey='$secretKey' WHERE userName = '$user'";
 
