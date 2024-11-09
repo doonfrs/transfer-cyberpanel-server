@@ -383,6 +383,8 @@ function checkPhpVersion()
         output("Please upgrade PHP to version 8.1 or higher.");
         exit(1); // Exit with a non-zero status to indicate failure
     }
+
+    ini_set('memory_limit', '-1');
 }
 
 function output(
