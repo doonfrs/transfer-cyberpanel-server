@@ -64,7 +64,7 @@ foreach ($websites as $domainInfo) {
 foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     if ($domainName) {
-        output("Updating credentials for $domainName...", nlBefore: true);
+        output("Updating credentials for emails in $domainName...", nlBefore: true);
         updateLocalEmailDatabase($domainName);
     }
 }

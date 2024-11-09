@@ -47,7 +47,7 @@ function execLocalSql($query, $rootUser = false)
 
     $command = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} --batch -e \"$query\" {$localDbCredentials['name']}";
 
-    $output = shellExec($command, failOnNoOutput: true);
+    $output = shellExec($command);
 
     return $output;
 }
@@ -419,11 +419,12 @@ function updateLocalEmailDatabase($domain)
     foreach ($remoteData as $row) {  // Skip header
         extract($row);
 
+        output("Updating email: $email");
+
         // Prepare the local UPDATE statement
-        $updateQuery = "UPDATE e_users SET password='$password', mail='$mail', DiskUsage='$DiskUsage' WHERE email='$email' AND emailOwner_id='$emailOwner_id'";
+        $updateQuery = "UPDATE e_users SET password='$password', DiskUsage='$DiskUsage' WHERE email='$email' AND emailOwner_id='$emailOwner_id'";
 
         $output = execLocalSql($updateQuery);
-
 
         if ($output) {
             output("failed  to update email $domain locally, error: $output", exitCode: 1);
