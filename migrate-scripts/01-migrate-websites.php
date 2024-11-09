@@ -13,28 +13,13 @@ $dkim = $config['config']['dkim'] ?? 0;
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 
-$remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
-$localDbCredentials = getLocalDatabaseCredentials();
-
-
-// CyberPanel command to list websites
-$cyberpanelCommand = "cyberpanel listWebsitesJson 2>/dev/null";
-
-$websitesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
-
-$websites = parseJson($websitesJson);
+$websites = getRemoteWebsites();
 if (!$websites) {
-    output("Failed to retrieve or parse websites list.", exitCode: 1);
+    output("No websites found.", exitCode: 1);
 }
 
-$cyberpanelCommand = "cyberpanel listPackagesJson 2>/dev/null";
 
-// Retrieve list of packages
-$packagesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
-$packages = parseJson($packagesJson);
-if (!$packages) {
-    output("Failed to retrieve or parse packages list.", exitCode: 1);
-}
+$packages = getRemotePackages();
 
 foreach ($packages as $package) {
 
@@ -64,6 +49,7 @@ foreach ($packages as $package) {
         output("Package $packageName created.", success: true);
     }
 }
+
 
 // Loop through each website to create locally 
 foreach ($websites as $site) {
@@ -159,7 +145,7 @@ foreach ($websites as $site) {
     $adminEmail = $site['adminEmail'] ?? '';
     $owner = $site['admin'] ?? '';
     output("Updating credentials for $owner...", nlBefore: true);
-    updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $owner);
+    updateLocalUserDatabase($owner);
 }
 
 output("Website migration completed.", success: true, nlBefore: true);

@@ -7,13 +7,9 @@ checkPhpVersion();
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 
-// Step 1: Retrieve Remote Database Credentials
-$remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
-$localDbCredentials = getLocalDatabaseCredentials();
-
 $websites = getRemoteWebsites();
 if (!$websites) {
-    output("Failed to retrieve or parse websites list.", exitCode: 1);
+    output("No websites found.", exitCode: 1);
 }
 
 
@@ -24,22 +20,18 @@ foreach ($websites as $domainInfo) {
 
     output("Processing domain: $domainName", nlBefore: true);
 
-    // Retrieve emails for the current domain
-    $emailsJson = executeRemoteSSHCommand("cyberpanel listEmailsJson --domainName $domainName 2>/dev/null", sudo: true);
-    if ($emailsJson == 0) {
-        continue;
-    }
-    $emails = parseJson($emailsJson);
+    $emails = getWebsiteEmails($domainName);
 
     if (!$emails) {
-        output("Failed to retrieve or parse emails for domain: $domainName", error: true);
+        output("no emails found for domain: $domainName");
         continue;
     }
+
 
     // Create each email account locally
     foreach ($emails as $emailInfo) {
         $email = $emailInfo['email'] ?? '';
-        $username = explode('@', $email)[0];
+        $username = $emailInfo['emailOwner_id'] ?? '';
         $emailPassword = bin2hex(random_bytes(6)); // Generate a random password
 
         output("Creating email account for $email in domain $domainName", nlBefore: true);
@@ -73,7 +65,7 @@ foreach ($websites as $domainInfo) {
     $domainName = $domainInfo['domain'] ?? '';
     if ($domainName) {
         output("Updating credentials for $domainName...", nlBefore: true);
-        updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $domainName);
+        updateLocalEmailDatabase($domainName);
     }
 }
 

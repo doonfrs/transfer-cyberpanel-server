@@ -10,8 +10,15 @@ function executeRemoteSqlCommand($query, $remoteCredentials)
     return executeRemoteSSHCommand($command);
 }
 
-function queryRemoteSql($query, $remoteCredentials)
+function queryRemoteSql($query, $rootUser = false)
 {
+    if ($rootUser) {
+        $remoteCredentials = getRemoteDatabaseRootCredentials();
+    } else {
+        $remoteCredentials = getRemoteDatabaseCyberPanelCredentials();
+    }
+
+
     $query = str_replace("\n", " ", $query);
     $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
 
@@ -27,8 +34,35 @@ function queryRemoteSql($query, $remoteCredentials)
     return $result;
 }
 
-function queryLocalSql($query, $localDbCredentials)
+function execLocalSql($query, $rootUser = false)
 {
+    if ($rootUser) {
+        $localDbCredentials = getLocalDatabaseRootCredentials();
+    } else {
+        $localDbCredentials = getLocalDatabaseCyberPanelCredentials();
+    }
+
+    $query = str_replace("\n", " ", $query);
+    $query = str_replace('$', '\$', $query);
+
+    $command = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} --batch -e \"$query\" {$localDbCredentials['name']}";
+
+    $output = shellExec($command, failOnNoOutput: true);
+
+    return $output;
+}
+
+
+
+
+function queryLocalSql($query, $rootUser = false)
+{
+    if ($rootUser) {
+        $localDbCredentials = getLocalDatabaseRootCredentials();
+    } else {
+        $localDbCredentials = getLocalDatabaseCyberPanelCredentials();
+    }
+
     $query = str_replace("\n", " ", $query);
     $command = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} --batch -e \"$query\" {$localDbCredentials['name']}";
 
@@ -163,15 +197,42 @@ function sshCopyId()
 
 function getRemoteWebsites()
 {
-    $config = readConfig();
-
     // CyberPanel command to list websites
     $cyberpanelCommand = "cyberpanel listWebsitesJson 2>/dev/null";
 
     // Retrieve list of websites from CyberPanel on the remote server
     $websitesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
     $websites = parseJson($websitesJson);
+
+    $onlyWebsites = getWebsiteArguments();
+
+    if ($onlyWebsites) {
+        $onlyWebsites = array_map('trim', $onlyWebsites);
+
+        output("Only migrating " . implode(', ', $onlyWebsites), nlBefore: true);
+        $websites = array_filter($websites, function ($website) use ($onlyWebsites) {
+            return in_array(trim($website['domain']), $onlyWebsites);
+        });
+        output("found: " . implode(', ', array_column($websites, 'domain')), nlBefore: true);
+    }
+
     return $websites;
+}
+
+
+
+function getRemotePackages()
+{
+    $cyberpanelCommand = "cyberpanel listPackagesJson 2>/dev/null";
+
+    // Retrieve list of packages
+    $packagesJson = executeRemoteSSHCommand($cyberpanelCommand, sudo: true);
+    $packages = parseJson($packagesJson);
+    if (!$packages) {
+        output("Failed to retrieve or parse packages list.", exitCode: 1);
+    }
+
+    return $packages;
 }
 
 
@@ -205,6 +266,10 @@ function getDatabaseCredentialsFromSettings($settingsContent, $dbName)
 function getRemoteDatabaseCyberPanelCredentials()
 {
 
+    if (isset($GLOBALS['remoteCyberPanelDbCredentials'])) {
+        return $GLOBALS['remoteCyberPanelDbCredentials'];
+    }
+
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
     $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
 
@@ -212,37 +277,37 @@ function getRemoteDatabaseCyberPanelCredentials()
         output("Failed to retrieve remote database credentials.", exitCode: 1);
     }
 
-    return getDatabaseCredentialsFromSettings($settings, 'default');
+    $GLOBALS['remoteCyberPanelDbCredentials'] = getDatabaseCredentialsFromSettings($settings, 'default');
+
+    return $GLOBALS['remoteCyberPanelDbCredentials'];
+}
+
+
+
+function getRemoteDatabaseRootCredentials()
+{
+    if (isset($GLOBALS['remoteRootDbCredentials'])) {
+        return $GLOBALS['remoteRootDbCredentials'];
+    }
+
+    $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
+    $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
+
+    if (!$settings) {
+        output("Failed to retrieve remote database credentials.", exitCode: 1);
+    }
+
+    $GLOBALS['remoteRootDbCredentials'] = getDatabaseCredentialsFromSettings($settings, 'rootdb');
+
+    return $GLOBALS['remoteRootDbCredentials'];
 }
 
 function getLocalDatabaseCyberPanelCredentials()
 {
 
-    $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
-    $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
-
-    if (!$settings) {
-        output("Failed to retrieve remote database credentials.", exitCode: 1);
+    if (isset($GLOBALS['localCyberPanelDbCredentials'])) {
+        return $GLOBALS['localCyberPanelDbCredentials'];
     }
-
-    return getDatabaseCredentialsFromSettings($settings, 'default');
-}
-
-
-function getRemoteDatabaseRootCredentials()
-{
-    $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
-    $settings = trim(executeRemoteSSHCommand("cat $settingsPath", sudo: true));
-
-    if (!$settings) {
-        output("Failed to retrieve remote database credentials.", exitCode: 1);
-    }
-
-    return getDatabaseCredentialsFromSettings($settings, 'rootdb');
-}
-
-function getLocalDatabaseCredentials()
-{
 
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
     $settings = trim(file_get_contents($settingsPath));
@@ -251,12 +316,18 @@ function getLocalDatabaseCredentials()
         output("Failed to retrieve remote database credentials.", exitCode: 1);
     }
 
-    return getDatabaseCredentialsFromSettings($settings, 'default');
+    $GLOBALS['localCyberPanelDbCredentials'] = getDatabaseCredentialsFromSettings($settings, 'default');
+
+    return $GLOBALS['localCyberPanelDbCredentials'];
 }
 
 function getLocalDatabaseRootCredentials()
 {
 
+    if (isset($GLOBALS['localRootDbCredentials'])) {
+        return $GLOBALS['localRootDbCredentials'];
+    }
+
     $settingsPath = "/usr/local/CyberCP/CyberCP/settings.py";
     $settings = trim(file_get_contents($settingsPath));
 
@@ -264,19 +335,17 @@ function getLocalDatabaseRootCredentials()
         output("Failed to retrieve remote database credentials.", exitCode: 1);
     }
 
-    return getDatabaseCredentialsFromSettings($settings, 'rootdb');
+    $GLOBALS['localRootDbCredentials'] = getDatabaseCredentialsFromSettings($settings, 'rootdb');
+
+    return $GLOBALS['localRootDbCredentials'];
 }
 
 
 // Step 4: Update Local Database with Remote Data
-function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $user)
+function updateLocalUserDatabase($user)
 {
-    $config = readConfig();
-
-    // Remote server details
-    $remoteIp = $config['remote']['ip'];
-    $remoteUser = $config['remote']['user'];
-    $remotePort = $config['remote']['port'];
+    $remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
+    $localDbCredentials  = getLocalDatabaseCyberPanelCredentials();
 
     // Fetch remote email data for this domain
     $query = "SELECT password,firstName,lastName,email,type,api,securityLevel,state,initWebsitesLimit,twoFA,secretKey 
@@ -320,21 +389,29 @@ function updateLocalUserDatabase($remoteDbCredentials, $localDbCredentials, $use
 }
 
 
+function getWebsiteEmails($domain)
+{
+
+    $remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
+    // Fetch remote email data for this domain
+    $query = "SELECT email,emailOwner_id, password, mail, DiskUsage  FROM e_users WHERE emailOwner_id = '$domain'";
+
+    $remoteData = queryRemoteSql($query, $remoteDbCredentials);
+    if (!$remoteData) {
+        return;
+    }
+
+    return $remoteData;
+}
 
 // Step 4: Update Local Database with Remote Data
-function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $domain)
+function updateLocalEmailDatabase($domain)
 {
-    $config = readConfig();
-
-    // Remote server details
-    $remoteIp = $config['remote']['ip'];
-    $remoteUser = $config['remote']['user'];
-    $remotePort = $config['remote']['port'];
 
     // Fetch remote email data for this domain
     $query = "SELECT email, password, mail, DiskUsage, emailOwner_id FROM e_users WHERE emailOwner_id = '$domain'";
 
-    $remoteData = queryRemoteSql($query, $remoteDbCredentials);
+    $remoteData = queryRemoteSql($query);
     if (!$remoteData) {
         return;
     }
@@ -345,10 +422,8 @@ function updateLocalEmailDatabase($remoteDbCredentials, $localDbCredentials, $do
         // Prepare the local UPDATE statement
         $updateQuery = "UPDATE e_users SET password='$password', mail='$mail', DiskUsage='$DiskUsage' WHERE email='$email' AND emailOwner_id='$emailOwner_id'";
 
-        $localUpdateCommand = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} -e \"$updateQuery\" {$localDbCredentials['name']}";
-        $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
+        $output = execLocalSql($updateQuery);
 
-        $output = shellExec($localUpdateCommand);
 
         if ($output) {
             output("failed  to update email $domain locally, error: $output", exitCode: 1);
@@ -376,9 +451,18 @@ function shellExec(
 
 function isVerboseMode()
 {
-    return (in_array('-v', (array) $_SERVER['argv']));
+    return isset(getopt('v')['v']);
 }
 
+function getWebsiteArguments(): ?array
+{
+    $opts =  getopt('v', ['website:']);
+    $websiteArg = $opts['website'] ?? null;
+    if ($websiteArg && is_string($websiteArg)) {
+        $websiteArg = [$websiteArg];
+    }
+    return $websiteArg;
+}
 
 function restartLiteSpeed(bool $gracefull = true)
 {

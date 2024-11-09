@@ -7,14 +7,9 @@ checkPhpVersion();
 // Ensure SSH key-based authentication is set up
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 
-$remoteRootDbCredentials = getRemoteDatabaseRootCredentials();
-$localDbCredentials = getLocalDatabaseCredentials();
-$localRootDbCredentials = getLocalDatabaseRootCredentials();
-$remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
-
 $websites = getRemoteWebsites();
 if (!$websites) {
-    output("Failed to retrieve or parse websites list.", exitCode: 1);
+    output("No websites found.", exitCode: 1);
 }
 
 // Loop through each website to migrate data
@@ -37,22 +32,23 @@ output("Migration of databases completed.", success: true);
 // Step 4: Update Local Database with Remote Data
 function transferWebsiteDatabases($domain)
 {
-    global $remoteRootDbCredentials, $localDbCredentials,
-        $remoteDbCredentials, $localRootDbCredentials;
+
+    $remoteRootDbCredentials = getRemoteDatabaseRootCredentials();
+    $localRootDbCredentials = getLocalDatabaseRootCredentials();
 
     // Fetch remote email data for this domain
     $query = "SELECT dbName,dbUser FROM databases_databases
         INNER JOIN websiteFunctions_websites ON websiteFunctions_websites.id = databases_databases.website_id 
         WHERE websiteFunctions_websites.domain = '$domain'";
 
-    $remoteData = queryRemoteSql($query, $remoteDbCredentials);
+    $remoteData = queryRemoteSql($query);
     if (!$remoteData) {
         return;
     }
 
     output("Remote databases: " . count($remoteData) . "" . implode(', ', array_column($remoteData, 'dbName')) . "");
 
-    $localDatabases = queryLocalSql($query, $localDbCredentials);
+    $localDatabases = queryLocalSql($query);
 
 
     if (!$remoteData && !is_array($remoteData)) {
@@ -93,7 +89,7 @@ function transferWebsiteDatabases($domain)
             output("Retrieving mysql passwords for $dbUser / $domain...");
             //update mysql user
             $query = "SELECT Password,authentication_string FROM mysql.user WHERE User = '$dbUser'";
-            $result = queryRemoteSql($query, $remoteRootDbCredentials);
+            $result = queryRemoteSql($query, rootUser: true);
 
             if (!$result) {
                 output("Failed to mysql passwords for $dbUser / $domain from remote database.", exitCode: 1);
@@ -102,7 +98,8 @@ function transferWebsiteDatabases($domain)
             $result = $result[0];
             $password = $result['Password'];
 
-            $output = shellExec("mysql -u{$localRootDbCredentials['user']} -p{$localRootDbCredentials['password']} -e \"ALTER USER '$dbUser'@'localhost' IDENTIFIED BY PASSWORD '$password'\"");
+            $sql = "ALTER USER '$dbUser'@'localhost' IDENTIFIED BY PASSWORD '$password'";
+            $output = execLocalSql($sql, rootUser: true);
 
             if ($output) {
                 output("Failed to mysql passwords for $dbUser / $domain from remote database $output.", exitCode: 1);

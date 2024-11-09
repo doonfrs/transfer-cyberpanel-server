@@ -16,7 +16,7 @@ $remoteUser = $config['remote']['user'];
 sshCopyId();  // This will check if SSH keys are already set up and run ssh-copy-id if not
 $websites = getRemoteWebsites();
 if (!$websites) {
-    output("Failed to retrieve or parse websites list.", exitCode: 1);
+    output("No websites found.", exitCode: 1);
 }
 
 // Loop through each website to migrate data

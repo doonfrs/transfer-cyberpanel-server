@@ -50,35 +50,35 @@ fi
 
 echo "Running migrations..."
 echo -e "\n**********Migrating websites**********"
-$php81 migrate-scripts/01-migrate-websites.php $verbose
+$php81 migrate-scripts/01-migrate-websites.php "$@"
 if [ $? -ne 0 ]; then
     echo "Error during website migration. Exiting."
     exit 1
 fi
 
 echo -e "\n**********Migrating emails**********"
-$php81 migrate-scripts/02-migrate-emails.php $verbose
+$php81 migrate-scripts/02-migrate-emails.php "$@"
 if [ $? -ne 0 ]; then
     echo "Error during email migration. Exiting."
     exit 1
 fi
 
 echo -e "\n**********Migrating databases**********"
-$php81 migrate-scripts/03-migrate-websites-databases.php $verbose
+$php81 migrate-scripts/03-migrate-websites-databases.php "$@"
 if [ $? -ne 0 ]; then
     echo "Error during database migration. Exiting."
     exit 1
 fi
 
 echo -e "\n**********Migrating data**********"
-$php81 migrate-scripts/04-migrate-websites-data.php $verbose
+$php81 migrate-scripts/04-migrate-websites-data.php "$@"
 if [ $? -ne 0 ]; then
     echo "Error during data migration. Exiting."
     exit 1
 fi
 
 echo -e "\n**********Migrating email data**********"
-$php81 migrate-scripts/05-migrate-websites-vmail.php $verbose
+$php81 migrate-scripts/05-migrate-websites-vmail.php "$@"
 if [ $? -ne 0 ]; then
     echo "Error during email data migration. Exiting."
     exit 1
