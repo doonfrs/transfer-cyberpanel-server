@@ -344,13 +344,12 @@ function getLocalDatabaseRootCredentials()
 // Step 4: Update Local Database with Remote Data
 function updateLocalUserDatabase($user)
 {
-    $remoteDbCredentials = getRemoteDatabaseCyberPanelCredentials();
     $localDbCredentials  = getLocalDatabaseCyberPanelCredentials();
 
     // Fetch remote email data for this domain
     $query = "SELECT password,firstName,lastName,email,type,api,securityLevel,state,initWebsitesLimit,twoFA,secretKey 
     FROM loginSystem_administrator WHERE userName = '$user'";
-    $remoteData = queryRemoteSql($query, $remoteDbCredentials);
+    $remoteData = queryRemoteSql($query);
     if (!$remoteData) {
         output("No email data for $user found on remote server.");
         return;
@@ -378,10 +377,8 @@ function updateLocalUserDatabase($user)
         // Prepare the local UPDATE statement
         $updateQuery = "UPDATE loginSystem_administrator SET password='$password', firstName='$firstName',lastName='$lastName',email='$email',type='$type',api='$api',securityLevel='$securityLevel',state='$state',initWebsitesLimit='$initWebsitesLimit',twoFA='$twoFA',secretKey='$secretKey' WHERE userName = '$user'";
 
-        $localUpdateCommand = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} -e \"$updateQuery\" {$localDbCredentials['name']}";
-        $localUpdateCommand = str_replace('$', '\$', $localUpdateCommand);
+        $output = execLocalSql($updateQuery);
 
-        $output = shellExec($localUpdateCommand);
         if ($output) {
             output("Failed to update $user locally, error: $output", exitCode: 1);
         }
