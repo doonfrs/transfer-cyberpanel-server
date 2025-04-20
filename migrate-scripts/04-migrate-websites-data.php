@@ -38,7 +38,7 @@ foreach ($websites as $site) {
 
     // Minimal logging output
     output("Migrating website: $domain...", nlBefore: true);
-    transferWebsiteData($remotePath, $localPath);
+    transferWebsiteData($domain, $remotePath, $localPath);
     setLocalOwnershipFromParent($domain);
     output("Migration completed for website: $domain.", success: true);
 }
@@ -48,19 +48,19 @@ restartLiteSpeed();
 output("Data migration completed.", success: true, nlBefore: true);
 
 // Function to transfer website data using rsync with sudo on the remote side
-function transferWebsiteData($remotePath, $localPath)
+function transferWebsiteData($domain, $remotePath, $localPath)
 {
     global $remoteUser, $remoteIp, $remotePort;
 
     // Include the remote port using -p in the SSH command
-	$rsyncCommand = "...";
+	$rsyncCommand = "rsync -a --info=progress2 -e 'ssh -p $remotePort' --rsync-path=\"sudo -n rsync\" $remoteUser@$remoteIp:$remotePath/ $localPath/";
 	$output = shellExec($rsyncCommand . " 2>&1");
 
 	if (str_contains($output, 'No such file or directory')) {
 	    // RED TEXT with visual markers
 	    echo "\033[1;31m";
 	    echo "==================== WARNING ====================\n";
-	    echo "No data found for `$domainName`. Skipping rsync.\n";
+	    echo "No data found for `$domain`. Skipping rsync.\n";
 	    echo "=================================================\n";
 	    echo "\033[0m";
 	    return;
