@@ -10,27 +10,35 @@ function executeRemoteSqlCommand($query, $remoteCredentials)
     return executeRemoteSSHCommand($command);
 }
 
-function queryRemoteSql($query, $rootUser = false)
+function queryRemoteSql($query, $rootUser = true)
 {
-    if ($rootUser) {
-        $remoteCredentials = getRemoteDatabaseRootCredentials();
-    } else {
-        $remoteCredentials = getRemoteDatabaseCyberPanelCredentials();
+    $remoteDbCredentials = getRemoteDatabaseRootCredentials();
+
+    $escapedQuery = escapeshellarg($query);
+    $command = "mysql -u{$remoteDbCredentials['user']} -p{$remoteDbCredentials['password']} --batch cyberpanel -e $escapedQuery 2>&1";
+
+    $output = executeRemoteSSHCommand($command);
+
+    if (str_contains(strtolower($output), 'error')) {
+        output("MySQL error during remote query: $output", exitCode: 1);
+        return false;
     }
 
+    $rows = array_filter(explode("\n", trim($output)));
+    if (empty($rows)) {
+        return [];
+    }
 
-    $query = str_replace("\n", " ", $query);
-    $command = "mysql -u{$remoteCredentials['user']} -p{$remoteCredentials['password']} --batch -e \\\"$query\\\" {$remoteCredentials['name']}";
+    // Explicitly trim and sanitize column headers
+    $columns = array_map('trim', explode("\t", array_shift($rows)));
 
-    $output = executeRemoteSSHCommand($command, failOnNoOutput: true);
-    $lines = explode("\n", trim($output));
     $result = [];
-    $header = array_shift($lines);
-    $header = explode("\t", $header);
-    $header = array_map('trim', $header);
-    foreach ($lines as $line) {
-        $result[] = array_combine($header, explode("\t", $line));
+
+    foreach ($rows as $row) {
+        $fields = array_map('trim', explode("\t", trim($row)));
+        $result[] = array_combine($columns, $fields);
     }
+
     return $result;
 }
 
@@ -38,6 +46,8 @@ function execLocalSql($query, $rootUser = false)
 {
     if ($rootUser) {
         $localDbCredentials = getLocalDatabaseRootCredentials();
+        // Force DB to cyberpanel even for root
+        $localDbCredentials['name'] = 'cyberpanel';
     } else {
         $localDbCredentials = getLocalDatabaseCyberPanelCredentials();
     }
@@ -46,14 +56,10 @@ function execLocalSql($query, $rootUser = false)
     $query = str_replace('$', '\$', $query);
 
     $command = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} --batch -e \"$query\" {$localDbCredentials['name']}";
-
     $output = shellExec($command);
 
     return $output;
 }
-
-
-
 
 function queryLocalSql($query, $rootUser = false)
 {
@@ -64,66 +70,60 @@ function queryLocalSql($query, $rootUser = false)
     }
 
     $query = str_replace("\n", " ", $query);
-    $command = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} --batch -e \"$query\" {$localDbCredentials['name']}";
+    $escapedQuery = escapeshellarg($query);
+    $command = "mysql -u{$localDbCredentials['user']} -p{$localDbCredentials['password']} --batch {$localDbCredentials['name']} -e $escapedQuery 2>&1";
 
-    $output = shellExec($command, failOnNoOutput: true);
-    if (!$output) {
-        return null;
+    $output = shellExec($command);
+
+    if (str_contains(strtolower($output), 'error')) {
+        output("Local MySQL error: $output", exitCode: 1);
+        return false;
     }
-    $lines = explode("\n", trim($output));
+
+    $rows = array_filter(explode("\n", trim($output)));
+    if (empty($rows)) {
+        return [];
+    }
+
+    $columns = array_map('trim', explode("\t", array_shift($rows)));
     $result = [];
-    $header = array_shift($lines);
-    $header = explode("\t", $header);
-    $header = array_map('trim', $header);
-    foreach ($lines as $line) {
-        $result[] = array_combine($header, explode("\t", $line));
+
+    foreach ($rows as $row) {
+        $fields = array_map('trim', explode("\t", trim($row)));
+        $result[] = array_combine($columns, $fields);
     }
+
     return $result;
 }
 
-function executeRemoteSSHCommand(
-    $command,
-    $saveToFile = null,
-    $sudo = false,
-    $failOnNoOutput = false
-) {
+function executeRemoteSSHCommand($command, $saveToFile = false, $sudo = false)
+{
     $config = readConfig();
 
-    // Remote server details
-    $remoteIp = $config['remote']['ip'];
-    $remotePort = $config['remote']['port'];
-    $remoteUser = $config['remote']['user'];
-    $remotePassword = trim($config['remote']['password'] ?? '');
+    $sshPort = $config['remote']['port'] ?? 22;
+    $sshUser = $config['remote']['user'] ?? 'root';
+    $sshHost = $config['remote']['ip'];
+    $sshPassword = $config['remote']['password'];
 
+    $sshPrefix = "ssh -p $sshPort $sshUser@$sshHost";
+
+    // Prepend sudo if requested
     if ($sudo) {
-        if ($remotePassword) {
-            $remotePassword = str_replace('$', '\$', $remotePassword);
-            $command = "echo '$remotePassword' | sudo -S $command";
-        } else {
-            $command = "sudo $command";
-        }
-    }
-
-    $sshCommand = "ssh -p $remotePort -tt $remoteUser@$remoteIp \"$command\" 2>&1";
-    if ($saveToFile) {
-        $sshCommand .= " > $saveToFile";
-    }
-
-    $output = shellExec($sshCommand);
-
-    if (empty($output) && $failOnNoOutput) {
-        output("Failed to retrieve data from command\n$command", exitCode: 1);
+        $command = "echo '$sshPassword' | sudo -S $command";
     }
 
     if ($saveToFile) {
-        shellExec("sed -i '\${/Connection to [0-9]\{1,3\}\(\.[0-9]\{1,3\}\)\{3\} closed\./d}' $saveToFile");
-    } else {
-        $output = preg_replace('/^\[sudo\] password.*$/m', '', $output);
-        $output = preg_replace('/^Connection to .* closed\.\s*$/m', '', $output);
+        // Save remote output (e.g., mysqldump) into a local file
+        $fullCommand = "$sshPrefix \"$command\" > $saveToFile";
+        output($fullCommand);
+        return shellExec($fullCommand);
     }
 
-    return trim($output);
+    $fullCommand = "$sshPrefix \"$command\"";
+    output($fullCommand);
+    return shellExec($fullCommand);
 }
+
 
 // Function to parse and clean JSON, removing unwanted messages
 function parseJson($json)
@@ -342,46 +342,62 @@ function getLocalDatabaseRootCredentials()
 
 
 // Step 4: Update Local Database with Remote Data
-function updateLocalUserDatabase($user)
+function updateLocalUserDatabase($userName)
 {
-    $localDbCredentials  = getLocalDatabaseCyberPanelCredentials();
+    $query = "SELECT password, firstName, lastName, email, type, api, securityLevel, state, initWebsitesLimit, twoFA, secretKey
+              FROM loginSystem_administrator WHERE userName = '" . addslashes($userName) . "'";
 
-    // Fetch remote email data for this domain
-    $query = "SELECT password,firstName,lastName,email,type,api,securityLevel,state,initWebsitesLimit,twoFA,secretKey 
-    FROM loginSystem_administrator WHERE userName = '$user'";
     $remoteData = queryRemoteSql($query);
-    if (!$remoteData) {
-        output("No email data for $user found on remote server.");
+
+    if ($remoteData === false || empty($remoteData)) {
+        output("No credentials found for user `$userName` on remote server, or query failed.", exitCode: 1);
         return;
     }
-    foreach ($remoteData as $row) {
-        if (!isset($row['password'])) {
-            output("No password for $user found on remote server, returned row: " . json_encode($row) . "\nReturned data: " . json_encode($remoteData) . "\n", error: true);
-            //press anykey to continue
-            readLine();
-            continue;
-        }
 
-        $password = $row['password'];
-        $firstName = $row['firstName'];
-        $lastName = $row['lastName'];
-        $email = $row['email'];
-        $type = $row['type'];
-        $api = $row['api'];
-        $securityLevel = $row['securityLevel'];
-        $state = $row['state'];
-        $initWebsitesLimit = $row['initWebsitesLimit'];
-        $twoFA = $row['twoFA'];
-        $secretKey = $row['secretKey'];
+    $userRow = $remoteData[0];
 
-        // Prepare the local UPDATE statement
-        $updateQuery = "UPDATE loginSystem_administrator SET password='$password', firstName='$firstName',lastName='$lastName',email='$email',type='$type',api='$api',securityLevel='$securityLevel',state='$state',initWebsitesLimit='$initWebsitesLimit',twoFA='$twoFA',secretKey='$secretKey' WHERE userName = '$user'";
+    // Explicitly validate all required keys
+    $expectedKeys = ["password", "firstName", "lastName", "email", "type", "api", "securityLevel", "state", "initWebsitesLimit", "twoFA", "secretKey"];
+    $missingKeys = array_diff($expectedKeys, array_keys($userRow));
 
-        $output = execLocalSql($updateQuery);
+    if (!empty($missingKeys)) {
+        output("Missing expected columns from remote data: " . implode(", ", $missingKeys) . ". Actual columns returned: " . implode(", ", array_keys($userRow)), exitCode: 1);
+        return;
+    }
 
-        if ($output) {
-            output("Failed to update $user locally, error: $output", exitCode: 1);
-        }
+    // All keys exist, now safely assign
+    $password = trim($userRow['password']);
+    $firstName = trim($userRow['firstName']);
+    $lastName = trim($userRow['lastName']);
+    $email = trim($userRow['email']);
+    $type = (int)$userRow['type'];
+    $api = (int)$userRow['api'];
+    $securityLevel = (int)$userRow['securityLevel'];
+    $state = trim($userRow['state']);
+    $initWebsitesLimit = (int)$userRow['initWebsitesLimit'];
+    $twoFA = (int)$userRow['twoFA'];
+    $secretKey = trim($userRow['secretKey']);
+
+    $updateQuery = "UPDATE loginSystem_administrator SET
+                        password='" . addslashes($password) . "',
+                        firstName='" . addslashes($firstName) . "',
+                        lastName='" . addslashes($lastName) . "',
+                        email='" . addslashes($email) . "',
+                        type=$type,
+                        api=$api,
+                        securityLevel=$securityLevel,
+                        state='" . addslashes($state) . "',
+                        initWebsitesLimit=$initWebsitesLimit,
+                        twoFA=$twoFA,
+                        secretKey='" . addslashes($secretKey) . "'
+                    WHERE userName='" . addslashes($userName) . "'";
+
+    $updateResult = execLocalSql($updateQuery, rootUser: true);
+
+    if ($updateResult) {
+        output("Failed to update local credentials for `$userName`: $updateResult", exitCode: 1);
+    } else {
+        output("Local credentials updated successfully for `$userName`.", success: true);
     }
 }
 

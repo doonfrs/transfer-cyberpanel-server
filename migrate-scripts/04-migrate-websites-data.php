@@ -53,12 +53,24 @@ function transferWebsiteData($remotePath, $localPath)
     global $remoteUser, $remoteIp, $remotePort;
 
     // Include the remote port using -p in the SSH command
-    $rsyncCommand = "rsync -a --info=progress2 -e 'ssh -p $remotePort' --rsync-path=\"sudo -n rsync\" $remoteUser@$remoteIp:$remotePath/ $localPath/";
-    $output = shellExec($rsyncCommand . " 2>&1");
+	$rsyncCommand = "...";
+	$output = shellExec($rsyncCommand . " 2>&1");
 
-    if (str_contains($output, "error")) {
-        output("Rsync failed. $output, failed command:\n$rsyncCommand\n", exitCode: 1);
-    }
+	if (str_contains($output, 'No such file or directory')) {
+	    // RED TEXT with visual markers
+	    echo "\033[1;31m";
+	    echo "==================== WARNING ====================\n";
+	    echo "No data found for `$domainName`. Skipping rsync.\n";
+	    echo "=================================================\n";
+	    echo "\033[0m";
+	    return;
+	}
+
+	if (str_contains($output, "error")) {
+	    output("Rsync failed. $output, failed command:\n$rsyncCommand\n", exitCode: 1);
+	}
+
+	output("Rsync completed successfully.\n$output", success: true);
 }
 
 // Function to set ownership of the local public_html directory based on /home/$domain owner

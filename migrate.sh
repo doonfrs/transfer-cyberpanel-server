@@ -56,12 +56,12 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo -e "\n**********Migrating emails**********"
-$php81 migrate-scripts/02-migrate-emails.php "$@"
-if [ $? -ne 0 ]; then
-    echo "Error during email migration. Exiting."
-    exit 1
-fi
+#echo -e "\n**********Migrating emails**********"
+#$php81 migrate-scripts/02-migrate-emails.php "$@"
+#if [ $? -ne 0 ]; then
+#    echo "Error during email migration. Exiting."
+#    exit 1
+#fi
 
 echo -e "\n**********Migrating databases**********"
 $php81 migrate-scripts/03-migrate-websites-databases.php "$@"
